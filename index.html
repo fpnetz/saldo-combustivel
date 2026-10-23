@@ -1089,7 +1089,7 @@ let dbNs = null, assetsNs = null, dbAvailable = false;
 let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 
-const APP_BUILD = "2026-10-23-v34";
+const APP_BUILD = "2026-10-23-v35";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -2352,13 +2352,13 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
             <div class="radio-opt" data-v="sim">Teve entrada (nota)</div>
           </div>
           <div class="grid2">
-            <div class="field" id="mEntradaWrap" hidden><label>Entrada (l)</label><input type="number" id="mEntrada" value="0" min="0"></div>
-            <div class="field"><label>Saída (l)</label><input type="number" id="mSaida" value="0" min="0"></div>
+            <div class="field" id="mEntradaWrap" hidden><label>Entrada Abastecimento (l)</label><input type="number" id="mEntrada" value="0" min="0"></div>
+            <div class="field"><label>Saída Abastecimento (l)</label><input type="number" id="mSaida" value="0" min="0"></div>
           </div>
-          <p class="hint">Esse valor entra ao mesmo tempo no saldo do Abastecimento (tanque) e no saldo do Suprimento — é o que faz os dois conciliarem.</p>
 
-          <label class="checkbox-row"><input type="checkbox" id="mSupDiff"> O Suprimento lançou um valor diferente do Abastecimento neste dia</label>
-          <div class="grid2" id="mSupDiffWrap" hidden>
+          <div class="section-label">Suprimento</div>
+          <p class="hint" style="margin:-4px 0 10px">Vem preenchido igual ao Abastecimento — edite aqui só se o Suprimento lançou um valor diferente neste dia.</p>
+          <div class="grid2">
             <div class="field"><label>Entrada Suprimento (l)</label><input type="number" id="mSupEntrada" value="0" min="0"></div>
             <div class="field"><label>Saída Suprimento (l)</label><input type="number" id="mSupSaida" value="0" min="0"></div>
           </div>
@@ -2389,6 +2389,17 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
 
   const mUnidade = document.getElementById("mUnidade");
   const mTanque = document.getElementById("mTanque");
+  // Suprimento acompanha Abastecimento ao vivo (Entrada→Entrada, Saída→Saída) até o
+  // usuário digitar algo diferente naquele campo específico — aí para de espelhar
+  // só aquele campo (sem caixa de marcar escondendo nada: os dois campos do
+  // Suprimento ficam sempre visíveis e editáveis). Declarado aqui (antes de
+  // fillTanques) porque getMovimento()/updatePreview() já são chamados durante o
+  // preenchimento inicial do formulário.
+  let supEntradaTocado = false, supSaidaTocado = false;
+  const mSupEntradaEl = document.getElementById("mSupEntrada");
+  const mSupSaidaEl = document.getElementById("mSupSaida");
+  mSupEntradaEl.addEventListener("input", ()=>{ supEntradaTocado = true; updatePreview(); });
+  mSupSaidaEl.addEventListener("input", ()=>{ supSaidaTocado = true; updatePreview(); });
   function fillTanques(){
     const u = unidades.find(x=>x.id===mUnidade.value);
     const tanquesVisiveis = u ? u.tanques.filter(t=> isEdit || tanqueAtivo(t)) : [];
@@ -2419,19 +2430,18 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
         if(opt.dataset.v!=="sim"){
           const inp = document.getElementById(wrapId).querySelector("input"); if(inp) inp.value=0;
         }
+        if(!supEntradaTocado) mSupEntradaEl.value = document.getElementById("mEntrada").value||0;
         updatePreview();
       });
     });
   }
   setupToggle("mHouve","mEntradaWrap");
-
-  const mSupDiff = document.getElementById("mSupDiff");
-  mSupDiff.addEventListener("change",()=>{
-    document.getElementById("mSupDiffWrap").hidden = !mSupDiff.checked;
-    if(!mSupDiff.checked){
-      document.getElementById("mSupEntrada").value = 0;
-      document.getElementById("mSupSaida").value = 0;
-    }
+  document.getElementById("mEntrada").addEventListener("input", ()=>{
+    if(!supEntradaTocado) mSupEntradaEl.value = document.getElementById("mEntrada").value||0;
+    updatePreview();
+  });
+  document.getElementById("mSaida").addEventListener("input", ()=>{
+    if(!supSaidaTocado) mSupSaidaEl.value = document.getElementById("mSaida").value||0;
     updatePreview();
   });
 
@@ -2444,13 +2454,10 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
       document.getElementById("mEntradaWrap").hidden = false;
       document.getElementById("mEntrada").value = editLancamento.abEntrada;
     }
-    const supDiff = (editLancamento.supEntrada||0)!==(editLancamento.abEntrada||0) || (editLancamento.supSaida||0)!==(editLancamento.abSaida||0);
-    if(supDiff){
-      mSupDiff.checked = true;
-      document.getElementById("mSupDiffWrap").hidden = false;
-      document.getElementById("mSupEntrada").value = editLancamento.supEntrada||0;
-      document.getElementById("mSupSaida").value = editLancamento.supSaida||0;
-    }
+    // ao editar, os valores de Suprimento vêm do lançamento salvo — não espelha mais
+    supEntradaTocado = true; supSaidaTocado = true;
+    mSupEntradaEl.value = editLancamento.supEntrada||0;
+    mSupSaidaEl.value = editLancamento.supSaida||0;
     updatePreview();
   }
 
@@ -2474,15 +2481,12 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
   function getMovimento(){
     const entrada = Number(document.getElementById("mEntradaWrap").hidden?0:document.getElementById("mEntrada").value||0);
     const saida = Number(document.getElementById("mSaida").value||0);
-    let supE = entrada, supS = saida;
-    if(document.getElementById("mSupDiff").checked){
-      supE = Number(document.getElementById("mSupEntrada").value||0);
-      supS = Number(document.getElementById("mSupSaida").value||0);
-    }
+    const supE = Number(mSupEntradaEl.value||0);
+    const supS = Number(mSupSaidaEl.value||0);
     return { abE:entrada, abS:saida, supE, supS };
   }
 
-  ["mData","mFisico","mSaida","mSupEntrada","mSupSaida"].forEach(id=>{
+  ["mData","mFisico"].forEach(id=>{
     document.getElementById(id).addEventListener("input", updatePreview);
   });
 
@@ -2640,7 +2644,18 @@ function detalheCorpoHtml(g, temExemplo){
           <div class="section-label" style="margin-top:18px">Detalhe por tanque</div>`;
 }
 function imprimirDetalhe(g, temExemplo){
-  const head = reportHeaderHtml(g.u.nome+" · "+g.produto, "Resumo do dia — "+fmtDate(g.data));
+  const marca = marcaParaSelecao([g.u]);
+  const head = `<div class="rpt-header">
+    <div class="rpt-header-row">
+      <div>
+        <div class="rpt-brand" style="color:${marca.cor}">${marca.nome}</div>
+        <h1>${g.u.nome} · ${g.produto}</h1>
+        <p class="rpt-sub">Resumo do dia — ${fmtDate(g.data)}</p>
+      </div>
+      <div class="rpt-header-label">Central de Abastecimento</div>
+    </div>
+    <div class="rpt-meta"><span>Gerado em ${new Date().toLocaleString("pt-BR")}</span><span>Gerado por: ${session.nome}</span></div>
+  </div>`;
   const html = head + detalheCorpoHtml(g, temExemplo) + blocosTanqueDetalhe(g, true);
   document.getElementById("printRoot").innerHTML = html;
   window.print();
