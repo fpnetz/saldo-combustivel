@@ -1120,7 +1120,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-23-v37";
+const APP_BUILD = "2026-10-23-v38";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1383,10 +1383,29 @@ async function removeUsuario(id){
 }
 
 /* ===================== Calc engine ===================== */
-function tanquesDoProduto(unidadeId, produto){
+// Agrupamento de tanques para o Suprimento: tanques vinculados à MESMA bomba (cadastrada
+// em Cadastro → Bombas) têm o saldo somado como um só grupo, porque fisicamente o
+// Suprimento é lançado pra bomba, não pro tanque individual. Dois tanques do mesmo
+// produto na mesma unidade que NÃO compartilham bomba ficam com saldo e comparação
+// totalmente separados (cada um no seu próprio grupo, mesmo sendo do mesmo produto).
+// Tanque sem nenhuma bomba cadastrada vinculando-o é seu próprio grupo, sozinho.
+function grupoDeTanques(u, tanqueId){
+  if(!u) return [tanqueId];
+  const bomba = bombasDaUnidade(u).find(b=>(b.tanqueIds||[]).includes(tanqueId));
+  if(!bomba) return [tanqueId];
+  const t0 = u.tanques.find(x=>x.id===tanqueId);
+  const produto = t0 ? t0.produto : null;
+  const ids = (bomba.tanqueIds||[]).filter(id=>{
+    const t = u.tanques.find(x=>x.id===id);
+    return t && (!produto || t.produto===produto);
+  });
+  return ids.length ? ids : [tanqueId];
+}
+function tanquesDoGrupo(unidadeId, tanqueId){
   const u = unidades.find(x=>x.id===unidadeId);
   if(!u) return [];
-  return u.tanques.filter(t=>t.produto===produto);
+  const ids = grupoDeTanques(u, tanqueId);
+  return u.tanques.filter(t=>ids.includes(t.id));
 }
 function lancamentosDoTanque(tanqueId){
   return lancamentos.filter(l=>l.tanqueId===tanqueId).sort((a,b)=>a.data<b.data?-1:1);
@@ -1400,11 +1419,12 @@ function saldoAbastecimentoAte(tanque, dataLimite){
   }
   return saldo;
 }
-// saldo acumulado do Suprimento por produto/unidade (soma de tudo lançado nos tanques daquele produto)
-function saldoSuprimentoAte(unidadeId, produto, dataLimite){
-  const tanques = tanquesDoProduto(unidadeId, produto);
+// saldo acumulado do Suprimento por grupo de tanques (mesma bomba) até uma data
+function saldoSuprimentoAteGrupo(unidadeId, tanqueIds, dataLimite){
+  const u = unidades.find(x=>x.id===unidadeId);
+  const tanques = u ? u.tanques.filter(t=>tanqueIds.includes(t.id)) : [];
   let saldo = tanques.reduce((s,t)=>s+t.saldoInicial,0);
-  const ids = new Set(tanques.map(t=>t.id));
+  const ids = new Set(tanqueIds);
   const all = lancamentos.filter(l=>ids.has(l.tanqueId)).sort((a,b)=>a.data<b.data?-1:1);
   for(const l of all){
     if(l.data > dataLimite) break;
@@ -1453,9 +1473,6 @@ function classificar(diffAbSup, saldoFisico, saldoAb){
   if(pct <= MARGEM.warn) return {status:"warn", label:"Fora do limite", pct, diffFis};
   return {status:"bad", label:"Divergente", pct, diffFis};
 }
-function somaAbastecimentoTanquesProduto(unidadeId, produto, data){
-  return tanquesDoProduto(unidadeId, produto).reduce((s,t)=>s+saldoAbastecimentoAte(t, data),0);
-}
 // último saldo físico conhecido de um tanque até uma data (régua só é lida quando há movimento,
 // então o valor é carregado para frente enquanto o tanque não abastece de novo)
 function fisicoConhecidoAte(tanque, dataLimite){
@@ -1463,33 +1480,40 @@ function fisicoConhecidoAte(tanque, dataLimite){
   if(!ls.length) return null;
   return ls[ls.length-1].saldoFisico;
 }
-// RESUMO DO DIA: agrupa os lançamentos por unidade + produto + data, somando todos os tanques
-// daquele produto (pode ter abastecido em uma bomba só ou em várias no mesmo dia)
+// RESUMO DO DIA: agrupa os lançamentos por unidade + GRUPO DE TANQUES (mesma bomba,
+// ou tanque isolado se não tem bomba vinculando-o) + data. Dois tanques do mesmo
+// produto que não compartilham bomba geram grupos (e linhas de resumo) separados.
 function gruposDoDia(){
   const chaves = new Map();
   lancamentos.forEach(l=>{
-    const key = l.unidadeId+"|"+l.produto+"|"+l.data;
-    if(!chaves.has(key)) chaves.set(key, {unidadeId:l.unidadeId, produto:l.produto, data:l.data});
+    const u = unidades.find(x=>x.id===l.unidadeId);
+    if(!u) return;
+    const t0 = u.tanques.find(x=>x.id===l.tanqueId);
+    const grupoIds = grupoDeTanques(u, l.tanqueId).slice().sort();
+    const grupoKey = grupoIds.join(",");
+    const key = l.unidadeId+"|"+grupoKey+"|"+l.data;
+    if(!chaves.has(key)) chaves.set(key, {unidadeId:l.unidadeId, tanqueIds:grupoIds, grupoKey, produto:(t0&&t0.produto)||l.produto, data:l.data});
   });
   return [...chaves.values()].map(k=>{
     const u = unidades.find(x=>x.id===k.unidadeId);
     if(!u) return null;
-    const tanques = tanquesDoProduto(k.unidadeId, k.produto);
-    const saldoAb = somaAbastecimentoTanquesProduto(k.unidadeId, k.produto, k.data);
-    const saldoSup = saldoSuprimentoAte(k.unidadeId, k.produto, k.data);
+    const tanques = u.tanques.filter(t=>k.tanqueIds.includes(t.id));
+    const saldoAb = tanques.reduce((s,t)=>s+saldoAbastecimentoAte(t, k.data),0);
+    const saldoSup = saldoSuprimentoAteGrupo(k.unidadeId, k.tanqueIds, k.data);
     const diffAbSup = saldoSup - saldoAb;
     const fisicoPorTanque = tanques.map(t=>({ t, fisico: fisicoConhecidoAte(t, k.data) }));
     const fisicoCompleto = fisicoPorTanque.every(x=>x.fisico!==null);
     const saldoFisico = fisicoCompleto ? fisicoPorTanque.reduce((s,x)=>s+x.fisico,0) : null;
     const cls = classificar(diffAbSup, saldoFisico, saldoAb);
-    const lancDoDia = lancamentos.filter(l=>l.unidadeId===k.unidadeId && l.produto===k.produto && l.data===k.data);
+    const lancDoDia = lancamentos.filter(l=>l.unidadeId===k.unidadeId && k.tanqueIds.includes(l.tanqueId) && l.data===k.data);
     const capacidadeTotal = tanques.reduce((s,t)=>s+(t.capacidade||0),0);
     const oc = ocupacao(capacidadeTotal, fisicoCompleto ? saldoFisico : saldoAb);
-    // movimento do dia: quanto ENTROU e quanto SAIU (abastecido nos veículos) naquele produto
+    // movimento do dia: quanto ENTROU e quanto SAIU (abastecido nos veículos) naquele grupo
     const entradaTotal = lancDoDia.reduce((s,l)=>s+(l.abEntrada||0),0);
     const saidaTotal = lancDoDia.reduce((s,l)=>s+(l.abSaida||0),0);
     return {
-      id: k.unidadeId+"__"+k.produto+"__"+k.data,
+      id: k.unidadeId+"__"+k.grupoKey+"__"+k.data,
+      grupoKey: k.grupoKey,
       u, produto:k.produto, data:k.data, tanques,
       saldoAb, saldoSup, diffAbSup, saldoFisico, fisicoCompleto, fisicoPorTanque,
       entradaTotal, saidaTotal,
@@ -1655,9 +1679,11 @@ function unidadeSummary(u, grupos){
   if(!unidadeVisivel) return null;
   let pior = null, ultimaData = null;
   const counts = {ok:0,warn:0,bad:0,pend:0,sem:0};
-  const produtos = [...new Set(u.tanques.map(t=>t.produto))];
-  produtos.forEach(produto=>{
-    const gs = grupos.filter(g=>g.u.id===u.id && g.produto===produto).sort((a,b)=>a.data<b.data?1:-1);
+  // cada grupo FÍSICO de tanques (mesma bomba, ou tanque isolado) conta separado —
+  // dois tanques do mesmo produto sem bomba em comum geram duas linhas de resumo
+  const chavesGrupo = new Set(u.tanques.map(t=>grupoDeTanques(u, t.id).slice().sort().join(",")));
+  chavesGrupo.forEach(chave=>{
+    const gs = grupos.filter(g=>g.u.id===u.id && g.grupoKey===chave).sort((a,b)=>a.data<b.data?1:-1);
     if(!gs.length){ counts.sem++; return; }
     const ultimo = gs[0];
     counts[ultimo.cls.status]++;
@@ -2683,10 +2709,10 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
   function updateSupHint(){
     const t = currentTanque();
     if(!t) return;
-    const irmaos = tanquesDoProduto(mUnidade.value, t.produto).filter(x=>x.id!==t.id);
+    const irmaos = tanquesDoGrupo(mUnidade.value, t.id).filter(x=>x.id!==t.id);
     const hint = document.getElementById("mSupHint");
     if(irmaos.length){
-      hint.textContent = `Este produto (${t.produto}) tem mais de um tanque nesta unidade — o saldo lançado aqui soma automaticamente com o saldo mais recente do(s) outro(s) tanque(s) na comparação com o Suprimento.`;
+      hint.textContent = `Este tanque está na mesma bomba de ${irmaos.map(x=>"Tanque "+x.numero).join(", ")} — o saldo lançado aqui soma automaticamente com o saldo mais recente do(s) outro(s) tanque(s) na comparação com o Suprimento.`;
     } else {
       hint.textContent = `Produto: ${t.produto}.`;
     }
@@ -2716,11 +2742,12 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     const {abE, abS, supE, supS} = getMovimento();
     const fisico = document.getElementById("mFisico").value===""? null : Number(document.getElementById("mFisico").value);
 
+    const grupoIds = grupoDeTanques(u, t.id);
     const saldoAbAnterior = saldoAbastecimentoAte(t, prevDate(data));
     const saldoAbNovo = saldoAbAnterior + abE - abS;
-    const saldoSupAnterior = saldoSuprimentoAte(u.id, t.produto, prevDate(data));
+    const saldoSupAnterior = saldoSuprimentoAteGrupo(u.id, grupoIds, prevDate(data));
     const saldoSupNovo = saldoSupAnterior + supE - supS;
-    const somaOutros = tanquesDoProduto(u.id,t.produto).filter(x=>x.id!==t.id).reduce((s,x)=>s+saldoAbastecimentoAte(x,data),0);
+    const somaOutros = tanquesDoGrupo(u.id,t.id).filter(x=>x.id!==t.id).reduce((s,x)=>s+saldoAbastecimentoAte(x,data),0);
     const diffAbSup = saldoSupNovo - (saldoAbNovo + somaOutros);
     const cls = classificar(diffAbSup, fisico, saldoAbNovo);
 
@@ -3552,7 +3579,7 @@ function openNovaBomba(unidadeId){
           <div class="field"><label>Numeração da bomba</label><input id="bNumero" placeholder="ex: 01"></div>
           <div class="field">
             <label>Tanques abastecidos por esta bomba</label>
-            <p class="hint" style="margin:2px 0 8px">Uma bomba pode abastecer mais de um tanque — marque todos que ela atende.</p>
+            <p class="hint" style="margin:2px 0 8px">Marque todos os tanques atendidos por esta bomba. Isso define como o Suprimento é somado: tanques na mesma bomba têm o saldo combinado; tanques do mesmo produto que NÃO estão aqui ficam com saldo separado.</p>
             ${u.tanques.length
               ? u.tanques.map(t=>`<label class="checkbox-row"><input type="checkbox" value="${t.id}"> Tanque ${t.numero} · ${t.produto}</label>`).join("")
               : '<p class="muted">Esta unidade ainda não tem tanque cadastrado.</p>'}
