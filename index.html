@@ -164,7 +164,7 @@ a{color:var(--teal-ink)}
 .brand-sub{font-size:12px;color:var(--muted);margin-top:-2px}
 .brand-logo-img{height:34px;width:auto;display:block;flex:0 0 auto}
 header.top .brand-logo-img{height:31px}
-.fuel-sticker{height:30px;width:auto;display:block;flex:0 0 auto;transform:rotate(-6deg);filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}
+.fuel-sticker{height:30px;width:auto;display:block;flex:0 0 auto;filter:drop-shadow(0 1px 2px rgba(0,0,0,.2))}
 .login-brand{display:flex;align-items:center;gap:12px;margin-bottom:26px}
 .login-brand .brand-logo-img{height:36px}
 .login-brand-divider{width:1px;align-self:stretch;background:var(--login-line)}
@@ -215,7 +215,7 @@ header.top .brand-logo-img{height:31px}
 #app{display:none;min-height:100%}
 header.top{
   background:var(--paper);border-bottom:1px solid var(--line);
-  padding:12px max(16px, env(safe-area-inset-left,0px)) 12px max(16px, env(safe-area-inset-left,0px));
+  padding:12px max(16px, env(safe-area-inset-right,0px)) 12px max(16px, env(safe-area-inset-left,0px));
   display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:20;
 }
 header.top .brand{margin:0}
@@ -240,7 +240,7 @@ header.top .title{font-weight:600;color:var(--muted);font-size:14px}
 .userbox{display:flex;align-items:center;gap:8px;font-size:13px}
 .userbox b{font-weight:600}
 
-main{max-width:1180px;margin:0 auto;padding:22px max(16px, env(safe-area-inset-left,0px)) 60px max(16px, env(safe-area-inset-left,0px))}
+main{max-width:1180px;margin:0 auto;padding:22px max(16px, env(safe-area-inset-right,0px)) 60px max(16px, env(safe-area-inset-left,0px))}
 
 .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
 .page-head h1{font-size:24px;margin:0 0 2px;display:flex;align-items:center;gap:8px}
@@ -589,7 +589,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .rpt-header h1{margin:4px 0 2px;font-family:"Source Serif 4",Georgia,serif;font-size:22px;color:#1a1a1a}
 .rpt-sub{margin:0 0 10px;font-size:13px;color:#444}
 .rpt-meta{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:#666}
-.rpt-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+.rpt-table-wrap{overflow-x:auto;margin-top:4px}
+.rpt-table{width:100%;border-collapse:collapse;font-size:12px}
 .rpt-table th,.rpt-table td{border:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}
 .rpt-table th{background:#f2f2f2}
 .rpt-table .num{text-align:right;font-variant-numeric:tabular-nums}
@@ -764,7 +765,6 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 
       <div class="fab-row">
         <button class="btn btn-add" id="openIncluirSaldo">+ Incluir saldo</button>
-        <button class="btn btn-ghost" id="openLancarSuprimento">+ Lançar Suprimento</button>
       </div>
 
       <div class="filters">
@@ -1462,30 +1462,6 @@ function saldoSuprimentoAteGrupo(unidadeId, tanqueIds, dataLimite){
     saldo += (s.supEntrada||0) - (s.supSaida||0);
   }
   return saldo;
-}
-// grupos selecionáveis de Suprimento de uma unidade: um por bomba cadastrada
-// (soma os tanques vinculados), e um por tanque isolado sem bomba.
-function gruposSuprimentoDaUnidade(u){
-  if(!u) return [];
-  const grupos = [];
-  const keysVistos = new Set();
-  const idsEmBomba = new Set();
-  bombasDaUnidade(u).forEach(b=>{
-    const ids = (b.tanqueIds||[]).slice().sort();
-    if(!ids.length) return;
-    ids.forEach(id=>idsEmBomba.add(id));
-    const key = ids.join(",");
-    if(keysVistos.has(key)) return;
-    keysVistos.add(key);
-    const tanques = u.tanques.filter(t=>ids.includes(t.id));
-    if(!tanques.length) return;
-    grupos.push({ grupoKey:key, tanqueIds:ids, label:`Bomba ${b.numero} — tanque(s) ${tanques.map(t=>t.numero).join(", ")} (${tanques[0].produto})` });
-  });
-  u.tanques.forEach(t=>{
-    if(idsEmBomba.has(t.id)) return;
-    grupos.push({ grupoKey:String(t.id), tanqueIds:[t.id], label:`Tanque ${t.numero} (${t.produto}) — sem bomba vinculada` });
-  });
-  return grupos;
 }
 async function saveSuprimento(s){
   const idx = suprimentos.findIndex(x=>x.id===s.id);
@@ -2348,7 +2324,7 @@ function agruparPorUnidadeProduto(grupos){
 // (editável pelo botão no cabeçalho). Cada unidade pode ter sua própria logo (Cadastro),
 // que substitui a logo padrão nos relatórios dessa unidade.
 function marcaPadrao(){
-  return { nome:"ATLÂNTICO TRANSPORTES", cor:PDFC.TEAL, logoDataUrl: configGeral.logoPadraoDataUrl||null };
+  return { nome:"ATLÂNTICO TRANSPORTES", cor:PDFC.TEAL, logoDataUrl: configGeral.logoPadraoDataUrl||LOGO_PADRAO_FALLBACK };
 }
 function marcaParaSelecao(lista){
   if(lista && lista.length===1 && lista[0] && lista[0].logoDataUrl){
@@ -2582,7 +2558,7 @@ function modeloParaHtml(m){
   const blocosHtml = m.blocos.map(b=>{
     if(b.tipo==="texto") return `<p class="rpt-empty">${b.texto}</p>`;
     const linhas = b.linhas.map(cells=>`<tr>${cells.map((c,i)=>`<td${b.numCols.includes(i)?' class="num"':''}>${c}</td>`).join("")}</tr>`).join("");
-    return `${b.titulo?`<h4 class="rpt-subhead">${b.titulo}</h4>`:""}<table class="rpt-table"><thead><tr>${b.headers.map((h,i)=>`<th${b.numCols.includes(i)?' class="num"':''}>${h}</th>`).join("")}</tr></thead><tbody>${linhas}</tbody></table>`;
+    return `${b.titulo?`<h4 class="rpt-subhead">${b.titulo}</h4>`:""}<div class="rpt-table-wrap"><table class="rpt-table"><thead><tr>${b.headers.map((h,i)=>`<th${b.numCols.includes(i)?' class="num"':''}>${h}</th>`).join("")}</tr></thead><tbody>${linhas}</tbody></table></div>`;
   }).join("");
   const marca = m.marca || marcaPadrao();
   return `<div class="rpt-header">
@@ -2687,7 +2663,13 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
             <div class="field" id="mEntradaWrap" hidden><label>Entrada Abastecimento (l)</label><input type="number" id="mEntrada" value="0" min="0"></div>
             <div class="field"><label>Saída Abastecimento (l)</label><input type="number" id="mSaida" value="0" min="0"></div>
           </div>
-          <p class="hint" style="margin:-4px 0 10px">O Suprimento agora é lançado em uma tela própria — use "+ Lançar Suprimento" no painel.</p>
+
+          <div class="section-label">Suprimento (bomba)</div>
+          <p class="hint" style="margin:-4px 0 10px" id="mSupHint">Repete automaticamente a Entrada/Saída do Abastecimento acima — só mude se o Suprimento da bomba foi diferente.</p>
+          <div class="grid2">
+            <div class="field"><label>Entrada de Suprimento (l)</label><input type="number" id="mSupEntrada" value="0" min="0"></div>
+            <div class="field"><label>Saída de Suprimento (l)</label><input type="number" id="mSupSaida" value="0" min="0"></div>
+          </div>
 
           <div class="section-label">Anexos</div>
           <div class="upload-row">
@@ -2713,6 +2695,10 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
   document.getElementById("modalCancel").onclick = closeModal;
   backdrop.addEventListener("click",(e)=>{ if(e.target===backdrop) closeModal(); });
 
+  // Suprimento é lançado junto, por bomba/grupo de tanques. Por padrão ele espelha a
+  // Entrada/Saída do Abastecimento (um único valor alimenta os dois, como de costume);
+  // se o usuário editar os campos de Suprimento manualmente, o espelhamento para.
+  let supEditado = false;
   const mUnidade = document.getElementById("mUnidade");
   const mTanque = document.getElementById("mTanque");
   function fillTanques(){
@@ -2720,10 +2706,10 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     const tanquesVisiveis = u ? u.tanques.filter(t=> isEdit || tanqueAtivo(t)) : [];
     mTanque.innerHTML = tanquesVisiveis.map(t=>`<option value="${t.id}">Tanque ${t.numero} — ${t.produto}</option>`).join("");
     if(prefillTanqueId) mTanque.value = prefillTanqueId;
-    updateSupHint(); updateSaldoAtualBox(); updatePreview();
+    updateSupHint(); updateSaldoAtualBox(); updateSupFields(); updatePreview();
   }
   mUnidade.onchange = fillTanques;
-  mTanque.onchange = ()=>{ updateSupHint(); updateSaldoAtualBox(); updatePreview(); };
+  mTanque.onchange = ()=>{ updateSupHint(); updateSaldoAtualBox(); updateSupFields(); updatePreview(); };
   if(prefillTanqueId){
     const own = unidades.find(u=>u.tanques.some(t=>t.id===prefillTanqueId));
     if(own) mUnidade.value = own.id;
@@ -2731,7 +2717,8 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
   if(isEdit){
     mUnidade.disabled = true;
     mTanque.disabled = true;
-    document.getElementById("mData").disabled = true;
+    // Data fica editável mesmo em edição (ex: corrigir um lançamento salvo no dia errado).
+    // Unidade/Tanque continuam travados porque trocar o tanque significa outro lançamento.
   }
   fillTanques();
 
@@ -2750,8 +2737,14 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     });
   }
   setupToggle("mHouve","mEntradaWrap");
-  document.getElementById("mEntrada").addEventListener("input", updatePreview);
-  document.getElementById("mSaida").addEventListener("input", updatePreview);
+  function mirrarSuprimentoSeNaoEditado(){
+    if(supEditado) return;
+    const {abE, abS} = getMovimento();
+    document.getElementById("mSupEntrada").value = abE;
+    document.getElementById("mSupSaida").value = abS;
+  }
+  document.getElementById("mEntrada").addEventListener("input", ()=>{ mirrarSuprimentoSeNaoEditado(); updatePreview(); });
+  document.getElementById("mSaida").addEventListener("input", ()=>{ mirrarSuprimentoSeNaoEditado(); updatePreview(); });
 
   if(isEdit){
     document.getElementById("mFisico").value = (editLancamento.saldoFisico===null||editLancamento.saldoFisico===undefined) ? "" : editLancamento.saldoFisico;
@@ -2762,6 +2755,7 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
       document.getElementById("mEntradaWrap").hidden = false;
       document.getElementById("mEntrada").value = editLancamento.abEntrada;
     }
+    updateSupFields();
     updatePreview();
   }
 
@@ -2774,7 +2768,7 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     const irmaos = tanquesDoGrupo(mUnidade.value, t.id).filter(x=>x.id!==t.id);
     if(irmaos.length){
       banner.hidden = false;
-      banner.innerHTML = `⛽ <b>Tanque na mesma bomba de ${irmaos.map(x=>"Tanque "+x.numero).join(", ")}</b> — o Suprimento desta bomba soma o grupo todo (lançado na tela própria "+ Lançar Suprimento").`;
+      banner.innerHTML = `⛽ <b>Tanque na mesma bomba de ${irmaos.map(x=>"Tanque "+x.numero).join(", ")}</b> — o Suprimento abaixo soma o grupo todo, não só este tanque.`;
     } else {
       banner.hidden = true;
     }
@@ -2789,7 +2783,7 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     const data = document.getElementById("mData").value || dstr(new Date());
     const grupoIds = grupoDeTanques(u, t.id);
     const saldoAbAtual = saldoAbastecimentoAte(t, prevDate(data));
-    const saldoSupAtual = saldoSuprimentoAteGrupo(u.id, grupoIds, data);
+    const saldoSupAtual = saldoSuprimentoAteGrupo(u.id, grupoIds, prevDate(data));
     const fisicoAtual = fisicoConhecidoAte(t, prevDate(data));
     box.innerHTML = `<div class="saldo-atual-title">Saldo atual deste tanque (antes deste lançamento)</div>
       <div class="saldo-atual-grid">
@@ -2803,17 +2797,43 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     return u ? u.tanques.find(t=>t.id===mTanque.value) : null;
   }
 
-  // valores que alimentam o Abastecimento a partir do formulário (Suprimento agora
-  // é lançado só em "+ Lançar Suprimento")
   function getMovimento(){
     const entrada = Number(document.getElementById("mEntradaWrap").hidden?0:document.getElementById("mEntrada").value||0);
     const saida = Number(document.getElementById("mSaida").value||0);
     return { abE:entrada, abS:saida };
   }
 
+  function suprimentoExistente(){
+    const t = currentTanque(); const u = unidades.find(x=>x.id===mUnidade.value);
+    if(!t || !u) return null;
+    const data = document.getElementById("mData").value || dstr(new Date());
+    const grupoKey = grupoKeyDe(grupoDeTanques(u, t.id));
+    return suprimentos.find(s=>s.unidadeId===u.id && s.grupoKey===grupoKey && s.data===data) || null;
+  }
+  function updateSupFields(){
+    supEditado = false;
+    const existente = suprimentoExistente();
+    const hint = document.getElementById("mSupHint");
+    if(existente){
+      document.getElementById("mSupEntrada").value = existente.supEntrada||0;
+      document.getElementById("mSupSaida").value = existente.supSaida||0;
+      supEditado = true; // já tem um valor próprio lançado — não sobrescrever espelhando o Abastecimento
+      hint.textContent = "Já existe Suprimento lançado para esta bomba nesta data — ajuste abaixo se precisar.";
+    } else {
+      const {abE, abS} = getMovimento();
+      document.getElementById("mSupEntrada").value = abE;
+      document.getElementById("mSupSaida").value = abS;
+      hint.textContent = "Repete automaticamente a Entrada/Saída do Abastecimento acima — só mude se o Suprimento da bomba foi diferente.";
+    }
+  }
+  [document.getElementById("mSupEntrada"), document.getElementById("mSupSaida")].forEach(el=>{
+    el.addEventListener("input", ()=>{ supEditado = true; updatePreview(); });
+  });
+
   ["mData","mFisico"].forEach(id=>{
     document.getElementById(id).addEventListener("input", ()=>{ updateSaldoAtualBox(); updatePreview(); });
   });
+  document.getElementById("mData").addEventListener("change", updateSupFields);
 
   function updatePreview(){
     const t = currentTanque(); if(!t) return;
@@ -2825,8 +2845,13 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     const grupoIds = grupoDeTanques(u, t.id);
     const saldoAbAnterior = saldoAbastecimentoAte(t, prevDate(data));
     const saldoAbNovo = saldoAbAnterior + abE - abS;
-    // Suprimento não é editado aqui — usa o saldo já lançado na tela própria, na mesma data
-    const saldoSupAtual = saldoSuprimentoAteGrupo(u.id, grupoIds, data);
+    // Suprimento lançado junto, neste mesmo formulário: soma o que já havia até o dia
+    // anterior com os valores digitados agora nos campos de Suprimento (iguala o
+    // Abastecimento por padrão, mas pode ser ajustado manualmente acima).
+    const supE = Number(document.getElementById("mSupEntrada").value||0);
+    const supS = Number(document.getElementById("mSupSaida").value||0);
+    const saldoSupAnterior = saldoSuprimentoAteGrupo(u.id, grupoIds, prevDate(data));
+    const saldoSupAtual = saldoSupAnterior + supE - supS;
     const somaOutros = tanquesDoGrupo(u.id,t.id).filter(x=>x.id!==t.id).reduce((s,x)=>s+saldoAbastecimentoAte(x,data),0);
     const diffAbSup = saldoSupAtual - (saldoAbNovo + somaOutros);
     const cls = classificar(diffAbSup, fisico, saldoAbNovo);
@@ -2907,14 +2932,35 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
         if(assetsNs && modalState.fotoFile){ const r = await assetsNs.upload(modalState.fotoFile); fotoAssetId = r.id; }
       }catch(e){ showToast("Falha ao enviar anexo — lançamento salvo sem ele."); }
 
-      // Suprimento não é mais salvo aqui — é lançado na tela própria "+ Lançar
-      // Suprimento" (coleção "suprimentos"), por bomba/grupo de tanques.
+      const novoId = t.id+"__"+data;
+      if(isEdit && editLancamento.id!==novoId){
+        // a data mudou durante a edição — move o lançamento (exclui o registro do id/data antigo)
+        lancamentos = lancamentos.filter(x=>x.id!==editLancamento.id);
+        if(dbAvailable && dbNs){
+          try{ await dbNs.doc("lancamentos/"+editLancamento.id).delete(); }
+          catch(e){ console.error("[saldo] falha ao mover lançamento (excluir id antigo):", e); }
+        }
+      }
       const l = {
-        id: t.id+"__"+data, unidadeId:u.id, tanqueId:t.id, produto:t.produto, data,
+        id: novoId, unidadeId:u.id, tanqueId:t.id, produto:t.produto, data,
         abEntrada:abE, abSaida:abS,
         saldoFisico:fisico, printAssetId, fotoAssetId, obs, exemplo:false,
       };
       await saveLancamento(l);
+
+      // Suprimento da bomba/grupo, lançado junto neste mesmo formulário.
+      const grupoIds = grupoDeTanques(u, t.id);
+      const grupoKey = grupoKeyDe(grupoIds);
+      const supE = Number(document.getElementById("mSupEntrada").value||0);
+      const supS = Number(document.getElementById("mSupSaida").value||0);
+      const supExistente = suprimentos.find(s=>s.unidadeId===u.id && s.grupoKey===grupoKey && s.data===data);
+      const s = {
+        id: supExistente ? supExistente.id : ("sup-"+u.id+"-"+grupoKey.replace(/,/g,"_")+"-"+data+"-"+Date.now().toString(36)),
+        unidadeId:u.id, grupoKey, tanqueIds:grupoIds, data,
+        supEntrada:supE, supSaida:supS, obs,
+        criadoPor: session.nome, criadoEm: new Date().toISOString(),
+      };
+      await saveSuprimento(s);
       closeModal();
     }catch(e){
       console.error("[saldo] falha ao salvar lançamento:", e);
@@ -3390,106 +3436,6 @@ function openMsgAfericao(){
       sel.removeAllRanges(); sel.addRange(range);
       showToast("Não foi possível copiar automaticamente — texto selecionado, use Ctrl+C.");
     }
-  };
-}
-
-// Tela própria de Suprimento — separada do Incluir Saldo. O Suprimento é lançado
-// por BOMBA (ou por tanque isolado, se não houver bomba vinculando-o), nunca por
-// tanque dentro de um grupo de bomba, por isso o seletor aqui é "Bomba/Tanque".
-function openLancarSuprimento(prefillUnidadeId, prefillGrupoKey, prefillData){
-  const listaUnidades = (session.role==="admin" ? unidades : unidades.filter(u=>u.id===session.unidadeId)).filter(unidadeAtiva);
-  if(!listaUnidades.length){ showToast("Cadastre (ou reative) uma unidade antes de lançar Suprimento."); return; }
-  document.getElementById("supModalBackdrop")?.remove();
-  const html = `
-    <div class="modal-backdrop" id="supModalBackdrop">
-      <div class="modal" style="max-width:480px">
-        <div class="modal-head"><h2>Lançar Suprimento</h2><button class="close-x" id="supModalClose">&times;</button></div>
-        <div class="modal-body">
-          <div class="field"><label>Unidade</label>
-            <select id="supUnidade">${listaUnidades.map(u=>`<option value="${u.id}">${u.nome}</option>`).join("")}</select>
-          </div>
-          <div class="field"><label>Bomba / Tanque</label><select id="supGrupo"></select></div>
-          <div class="field"><label>Data</label><input id="supData" type="date" value="${prefillData||dstr(new Date())}"></div>
-          <div class="hint" id="supSaldoAtual" style="margin:2px 0 10px"></div>
-          <div class="field"><label>Entrada de Suprimento (l)</label><input type="number" id="supEntrada" value="0" min="0"></div>
-          <div class="field"><label>Saída de Suprimento (l)</label><input type="number" id="supSaida" value="0" min="0"></div>
-          <div class="field"><label>Observação (opcional)</label><input id="supObs" placeholder="ex: transferência entre tanques, carga recebida"></div>
-        </div>
-        <div class="modal-foot"><button class="btn btn-ghost" id="supCancel">Cancelar</button><button class="btn btn-primary" id="supSave">Salvar Suprimento</button></div>
-      </div>
-    </div>`;
-  document.body.insertAdjacentHTML("beforeend", html);
-  const bd = document.getElementById("supModalBackdrop");
-  const selU = document.getElementById("supUnidade");
-  const selG = document.getElementById("supGrupo");
-  const inpData = document.getElementById("supData");
-  const inpE = document.getElementById("supEntrada");
-  const inpS = document.getElementById("supSaida");
-  const inpObs = document.getElementById("supObs");
-  const boxSaldo = document.getElementById("supSaldoAtual");
-  let editado = false;
-
-  function existenteFor(unidadeId, grupoKey, data){
-    return suprimentos.find(s=>s.unidadeId===unidadeId && s.grupoKey===grupoKey && s.data===data);
-  }
-  function preencherGrupos(){
-    const u = unidades.find(x=>x.id===selU.value);
-    const grupos = gruposSuprimentoDaUnidade(u);
-    selG.innerHTML = grupos.map(g=>`<option value="${g.grupoKey}">${g.label}</option>`).join("");
-  }
-  function atualizar(){
-    const u = unidades.find(x=>x.id===selU.value);
-    const grupos = gruposSuprimentoDaUnidade(u);
-    const g = grupos.find(x=>x.grupoKey===selG.value);
-    if(!u || !g){ boxSaldo.textContent=""; return; }
-    const data = inpData.value || dstr(new Date());
-    const saldoAteAnterior = saldoSuprimentoAteGrupo(u.id, g.tanqueIds, prevDate(data));
-    const existente = existenteFor(u.id, g.grupoKey, data);
-    boxSaldo.innerHTML = `Saldo de Suprimento acumulado até o dia anterior: <b>${fmtL(saldoAteAnterior)}</b>.`
-      + (existente ? ` Já existe lançamento para este grupo nesta data — salvar vai substituí-lo.` : "");
-    if(existente && !editado){
-      inpE.value = existente.supEntrada||0;
-      inpS.value = existente.supSaida||0;
-      inpObs.value = existente.obs||"";
-    } else if(!editado){
-      inpE.value = 0; inpS.value = 0; inpObs.value = "";
-    }
-  }
-  [inpE, inpS, inpObs].forEach(el=>el.addEventListener("input", ()=>{ editado = true; }));
-
-  if(session.role==="controlador"){ selU.value = session.unidadeId; selU.disabled = true; }
-  if(prefillUnidadeId) selU.value = prefillUnidadeId;
-  preencherGrupos();
-  if(prefillGrupoKey) selG.value = prefillGrupoKey;
-  atualizar();
-
-  selU.addEventListener("change", ()=>{ preencherGrupos(); editado=false; atualizar(); });
-  selG.addEventListener("change", ()=>{ editado=false; atualizar(); });
-  inpData.addEventListener("change", ()=>{ editado=false; atualizar(); });
-
-  document.getElementById("supModalClose").onclick = ()=>bd.remove();
-  document.getElementById("supCancel").onclick = ()=>bd.remove();
-  bd.addEventListener("click",(e)=>{ if(e.target===bd) bd.remove(); });
-  document.getElementById("supSave").onclick = async ()=>{
-    const u = unidades.find(x=>x.id===selU.value);
-    const grupos = gruposSuprimentoDaUnidade(u);
-    const g = grupos.find(x=>x.grupoKey===selG.value);
-    const data = inpData.value;
-    if(!u || !g){ showToast("Selecione a unidade e a bomba/tanque."); return; }
-    if(!data){ showToast("Informe a data."); return; }
-    if(session.role==="controlador" && u.id!==session.unidadeId){ showToast("Você não pode lançar Suprimento para esta unidade."); return; }
-    const existente = existenteFor(u.id, g.grupoKey, data);
-    const s = {
-      id: existente ? existente.id : ("sup-"+u.id+"-"+g.grupoKey.replace(/,/g,"_")+"-"+data+"-"+Date.now().toString(36)),
-      unidadeId:u.id, grupoKey:g.grupoKey, tanqueIds:g.tanqueIds, data,
-      supEntrada: Number(inpE.value||0), supSaida: Number(inpS.value||0),
-      obs: inpObs.value.trim(),
-      criadoPor: session.nome, criadoEm: new Date().toISOString(),
-    };
-    await saveSuprimento(s);
-    bd.remove();
-    renderTable();
-    showToast("Suprimento lançado.");
   };
 }
 
@@ -4016,7 +3962,6 @@ document.getElementById("logoutBtn").addEventListener("click",()=>{
   document.getElementById("afUnidade").disabled = false;
 });
 document.getElementById("openIncluirSaldo").addEventListener("click",()=>openIncluirSaldo());
-document.getElementById("openLancarSuprimento").addEventListener("click",()=>openLancarSuprimento());
 document.getElementById("openNovaUnidade").addEventListener("click", openNovaUnidade);
 document.getElementById("openNovoUsuario").addEventListener("click", openNovoUsuario);
 document.getElementById("testarDb").addEventListener("click", testarConexaoDb);
