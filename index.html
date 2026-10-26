@@ -3131,7 +3131,7 @@ function renderCadastro(){
             <button class="tank-chip-remove" data-del-tanque="${u.id}|${t.id}" title="Remover tanque" aria-label="Remover tanque">&times;</button>
             <div class="t-num">Tanque ${t.numero}${tAtiva?"":' <span class="badge-inativo">Inativo</span>'}</div>
             <div class="t-meta">${t.produto} · ${fmtL(t.capacidade)} cap.</div>
-            <div class="t-meta">Saldo inicial ${fmtL(t.saldoInicial)} em ${fmtDate(t.dataInicio)}</div>
+            <div class="t-meta">Saldo físico inicial ${fmtL(t.saldoInicial)} em ${fmtDate(t.dataInicio)}</div>
             <button type="button" class="tank-chip-toggle" data-toggle-tanque="${u.id}|${t.id}">${tAtiva?"Desativar":"Reativar"}</button>
           </div>`;
         }).join("")}
@@ -3549,9 +3549,10 @@ function openNovoTanque(unidadeId){
           </div>
           <div class="grid2">
             <div class="field"><label>Capacidade (l)</label><input id="tCap" type="number" value="15000"></div>
-            <div class="field"><label>Saldo inicial (l)</label><input id="tSaldo" type="number" value="0"></div>
+            <div class="field"><label>Saldo físico inicial (l)</label><input id="tSaldo" type="number" value="0"></div>
           </div>
           <div class="field"><label>Data de início do saldo</label><input id="tData" type="date" value="${dstr(new Date())}"></div>
+          <p class="hint" style="margin:6px 0 0">O saldo digitado aqui é o saldo FÍSICO (régua) do tanque nessa data — a partir dele, o sistema calcula tanto o saldo de Abastecimento quanto o de Suprimento (bomba) do tanque, inclusive quando ele compartilha bomba com outro tanque.</p>
         </div>
         <div class="modal-foot"><button class="btn btn-ghost" id="tCancel">Cancelar</button><button class="btn btn-primary" id="tSave">Adicionar tanque</button></div>
       </div>
