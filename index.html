@@ -232,6 +232,10 @@ header.top .title{font-weight:600;color:var(--muted);font-size:14px}
   display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);
 }
 .icon-btn:hover{filter:brightness(.96)}
+.icon-btn-mini{width:24px;height:24px;border-radius:6px}
+.unit-logo-row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.unit-logo-thumb{height:22px;max-width:120px;object-fit:contain;display:block}
+.btn-mini{padding:4px 10px;font-size:12px}
 .userbox{display:flex;align-items:center;gap:8px;font-size:13px}
 .userbox b{font-weight:600}
 
@@ -346,6 +350,18 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 }
 .radio-opt.active{border-color:var(--teal);color:var(--teal-ink);background:color-mix(in srgb, var(--teal) 8%, transparent)}
 .hint{font-size:12px;color:var(--muted);margin-top:4px}
+.banner-bomba{
+  margin:10px 0;padding:10px 12px;border-radius:8px;font-size:12.5px;line-height:1.4;
+  background:color-mix(in srgb, var(--teal) 10%, transparent);border:1px solid color-mix(in srgb, var(--teal) 35%, var(--line));color:var(--teal-ink);
+}
+.saldo-atual-box{
+  margin:10px 0 4px;padding:10px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--line);
+}
+.saldo-atual-title{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:6px}
+.saldo-atual-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12.5px}
+.saldo-atual-grid span{display:block;color:var(--muted);font-size:11px;margin-bottom:2px}
+.saldo-atual-grid b{font-variant-numeric:tabular-nums}
+@media (max-width:560px){ .saldo-atual-grid{grid-template-columns:1fr} }
 .upload-row{display:flex;gap:10px}
 .upload-box{
   flex:1;border:1px dashed var(--line);border-radius:8px;padding:14px;text-align:center;cursor:pointer;font-size:12.5px;color:var(--muted);
@@ -567,6 +583,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .rpt-header-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .rpt-header-label{font-size:10.5px;color:#888;white-space:nowrap;margin-top:2px}
 .rpt-brand{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#555}
+.rpt-brand-img{height:26px;max-width:170px;object-fit:contain;display:block;margin-bottom:6px}
 .rpt-logo-img{height:28px;width:auto;display:block;margin-bottom:8px}
 .rpt-header h1{margin:4px 0 2px;font-family:"Source Serif 4",Georgia,serif;font-size:22px;color:#1a1a1a}
 .rpt-sub{margin:0 0 10px;font-size:13px;color:#444}
@@ -652,7 +669,11 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 <div id="app">
   <header class="top">
     <div class="brand">
-      <img src="data:image/png;base64,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" alt="Atlântico Transportes" class="brand-logo-img">
+      <img id="brandLogoImg" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMUAAAA4CAYAAABNNDw3AAAWLUlEQVR4nO2deZRUxb3Hv1V37X16pmffgQHcBhARn/qQYJ4aMe4xhoTwjHHLMwajBhMVPcTlmaAx7kZ5RhOXJJi4PEVFiBoVEYgwAjLAzDAzzN49va/33qr3R3fP0vTAoKK8nPs55x7O9FTVre1b9fv9qqYhnHOYmJgMQ7/qCpiYHG6YojAxycEUhYlJDqYoTExyMEVhYpKDKQoTkxxMUZiY5GCKwsQkB1MUJiY5iF9kYTrnatRg5TGDlWic2QBAojRqF2iXXRC6CcC+yPeZmBwKPrcoOAcd0LTG7dH493ZG4xfujiVquxIpRBgD5xwOUcAki4qzit03HOu03S8QkvoiKm5icqggn+fu06CmT1ntDTz6mi8wd0MwgrZ4Egm272YgEYKzSwrx3w01506yqi9pjNtijJW4RKHt81TexORQ8Jl2Csa5uC0SX/RAR+8Tr/v86Eqk9msXaZxjcziKndH4BVWq/O5v23sGN4SiuK62fOm/FTh++RnrbmJySDhoUTDOxY+CkSXXN7ffvjEcRTLPziAQAoVSgHMkGAMDkGIMAd2YdGdr1+BDnb0I6gZ2ROPLbplQNe9bZUX/QQH9i2iQicnn5aDNp53R+AXzP96xcncsMVwIIZAIwckFdiwsL946x+1cUqnK7xMQ1pfSjv0gEL5ttTcwd2csjs3hGMKGMZS3WlVw7+S6N84vLTyLkn9NYXCA9iW1Y4O6Xq9S6i9TpA0KpcGvul4m+TkoUXTGk6ecvXnH25vDsaHP7ALFiQVO3FRfefdJbsfSfI50ijHHoGZMaYknvvlQR8/S171B+PXh+X+U3YKHptb/+t/drl/8qwkjybjrpT7fXxdt2z3PSinijOOWCZW4vq7SLlES/arrZ7Iv4z6nCOlGzc27O0cJokyR8eOacjw/rWHynELnjfkEoXOuvu4N/M/Dnb0bqhX5ncePmlR+84RKrVqVh9JsjyZwX0fvDV5NO/rzNuhwIsG4+699vv9d3LxnXp1FxU0TqjQGYPVgCDtjiQu+6vqZ5GdcPgXnnL7cP7jyxYHBoc+KJBFXVJXimpqyqW5R3JUvn8Ehv9DnW3V7a9fcWlUBqYJhE2jvNbXlziJJXH/j7s7G3mQKnHOsGvDjxf7BFy+vKq072EZEDFYR1vVqldJBpyi0jxRnwmDuoGHUG4wp6U9IvhaO+skiCF6nKLTHDFYSMYxKCmgFktSiUHJQJo9f0yfvjCVOPqHAgXOKC5qOcznuaY0nnwrqOsKGUc05p4SQUU5ZzGAlYcOoMhhTFEEIuEShTSQkkVt2gjG3X9MnExCjUBKaKSHaQEqbxjmnY7dzdFslSqNFkrQ9ousVUcbKKaAVy1ITJWRot86ePcUNo4hxLg2XO1yOQGjSI4tbR/U7Y+6IblRqnNs4zy6+6TwipXGbIPRaBdp/OJ5djUsUA5re+Gyvb1ZET/sCMiX4hseNH1aWzCmUxOZ8eTTObU929W+7q7Wrdk8iiQkWBdnBFQlJfLu8eG5HUhtc1tIJnXMkOcdv93TXXlJZYpPI+MwKDtBV3sDvn+7uXxjWGSwCxaIKz5/P8Lh/IBESZYD4tj90z4MdPZcM9/yBRTHLacflVaUnL2/vfq85GodTEHBFddl9Xyt0XjueemUpEIXdM5225zeFIhf/qXew8S/9/qeOtllwdU3Vd2pUZW2uID4Jxy5d0d3/xO5oHAyAQinmFboCV1aVVo00tZKMu17o9a16ttc7mxKCuxtqFn4cjl39TE//7NHty23r6HaWyRJunlA1f0VX/6sfh6KwiwJWHD2x2iEIe0O6UbPGF3xw7WDwm93JFJKcg3GeKXN0OS5BwD1T604sl6X1u2KJ817u96/cHIkirBvQhszz4XwCIXAIAma77NELy4pOr1Tk9w+mXw814xLFR8HIku2R2JCkqxQFC8s9j1eq+RuTZMz1UEfvwD3tPVJ3Mr14UEJACdGyaVRK/N8uK7rw777Ayr/7QwCA5lgCq32BR870uL8/nnp9GAjfdOX21oV7E0lkh6srkbroeJfj7lJZ+mfKYI5PIrFLXvUGxlPcEBOtKgRCkqu8ATRH46i3KPi5JO44qEIAdCaScx/f23fxG74gUpkoXVM4hhkO2xVTbZbnR6blAP27P/SbJ/b2I5oJRBACtMeTBcc5bT8dGboO6XrtMz3e2at8AZRIEjTObb/v7p/9lu/gfPe5bif6U9qMlX0+7IwlMMNhAwXRYwYreaCjp/2Rzj4MaDo0zrE/37NakWGh1LspFF18a0vnPe8HwggbLCOi/FBC8IYvaEsw9t5/VZdV2kWh+6Aqfwg5oE/BAHFdIHRxbyo9uQVCMNtlw9cKXdfm2/oSjLkf6OgN3NXWPSSIsahR5bWnewqG1jMDwIrO/oXjqXhvMnXcZdtal3UmkiAAZELAAWwORzCY0qdm6lLoTWlwCjT9UAqnKEAm6TcSANYRv3NQikJRxARVScYNw5MNN7tEAUfaLX8cT72yxBkrerJ7YOVr3gBSjMFK0129N5HEJ5HYXINzeWT6kGbU7orGHUOCAMA50BSO4uUB/zKNc1s2bcxgJU2R9MZxfIEdHlnaOqqdmUfIpCcAbJnPHEK6nQ5KcWFJoTdmsJK+VHqtmuN2QCKI7oolzvvVnm50JVPQGIMMwCkK+5TvpOl/57idAIDne733vOENIKgboJyjQpFRryqjnmpVgUQIGOcY1DR8FIrCr+sNB9O3h5oD7hSDKW1qazyJJEurXqEEp3vcTfkiJyHdqHl8b3/bXW1dGNQOHERSKfU3OqxPVavyoo5EWkDbY3FwgO7P1gzpRs2Nuzo27IzFIRKCb5UW4Si7Fbe0dCDBOJ7r8z6zzF79bIEkttzZUKPc3lAjZfOmGHd8feO2ng+DERRJIv5wTMOTpxa5fjyyfAEk+VRX/5Zgxlx0CCLGa9IBaTv8hV7fqgfae6BzjukOK55vnHzREe9v/jMHsDuWQG9SmzVyp22LJ87YGIoAAEplCdfWluPnuzpgAHjPH8b2SPx70xzWx4D0Tjyopes202lDgSi2bDih0cIxpAOEdaPqtE3bd2wKRVGmSFg988hFk22WF3Lr+mzPwAdhI93VjQ7bDoGQ5P17uh8N6QZkSnBdbTmura2YViBLLRhj5RcISTaFo5et8gZgAKhRFbwyY+rlRzmsTxE+ehw5OH0/EFk2b+O2JQbnEMAx0oc5HDjgTjGoG1N82vC5gkIpZrvsd+Wm82t6wyOdfe23t3bSfIIg6WefiV6rKm9NslqGfh7QNIR1vWqs+sQNo+iP3QMbXvcGoHGOmU47lk+uPbHBqq4tENMaf657AIxzEQAEQlISIdHso3Nu2RxOz++pNguqVPndkb+XCIkSAvZ+MHxkWDdAAExzWA/UTaPYEo5deWdb16woY6izKFhx5MSfTLFZ/uLO1G+tP4TN4eiPhp1ioDeVmrUjGgcAfMNTgGvrKpz1FhUAsC4Yxtv+0D1JxlwA8Gk0sSDBGAiAUlnuVSgJiIQkRrZhWyS2yJcZB6sgoEpV/pHbzrhhFH0YiDQyziFTghpVXksA9n4wnOkfK+YXFy4rlqUmCYjm5h/qL4D1pbSZ7YkkAOCCkkJMtqkrBSBFCfSRj0BISiSIZ82xckWGldL+g+rgQ8wBRRE3mCc24rBNpRSVqvLeyDQDKa1x+Z7unbe37kVAN/YpA0ibXflOrV2S2FYgDi1wSBoMYYNX5yvD4Fz+MBi5+Ynu/pK+lIYqVcbyybV3VKjyuqPtlidnONIWRkcihR3R+MX5yuhPatMTjIMAONZpR7Uqv5ObJsWYYyClQecclBBcWFr067yNykPUYGV3tO79zafRONyigOtrK7xH2K3PAMC5pYUAgIGUho5Eap7OYQHS/kSM8ZJoZsU+rajgPYmQ6E9qy8ICAQzO8UKfz9aV1E4CgBf7fedzAE5RRLEsbskXCt8Uii72Z0QxyaLCIQqduWkSjBduyuxONaqCMkXeENSN+s7Mrj3BoqBGVdYeqM0a47bmaPyimJEW6jSnrUkidMyddWMoch1D+k5cvUWNH07+BDAen4JzcaTDJBICAXxoEDrjyVNubenccm97NyJGfkEAacdKoDSZpwK6QIajJByAzpglNx0AdMST8+5r71m8JRSFSAgWlHlQKoubdkXj56U4HCVyeiVOcY6HOnv/kK+MTaHIYgAQKUGVKsMpiu25aXyafmQkM0FFAsxy2ZaP2bARcIDesruz58X+dOh6tsuBYxzWFXsTqTm7YvHz5hQ4mrItXe0LlPk07QggbdLtiSdP03larDWqspYA7JziwvOnZHbRdcEw1gXCSzlAPwimJ3KDVUGdRX0z3w7ckUha4hmf6ExPQTjfgpRk3LUnnh7KY502FEnSpxtCkRuy+TySCLck5A23jy6HuT4OxRwcgEMUUG9RVu3vEPaDQNgBAIWyiCpVefdgTNMvgwP6FDIlYUUY1k7cMBAxWIVVEPpbY4kzb2vpfHVl3yASGZ+DZib4/iIPI0lx7hh5s1YkBDZB6M1Np3Fu+13XwKo3fcH0DOAcrwz4scYX/CuQFtPeEY79a94AGCDmToZne71zAMBCKZyC0JlvQn0aiS/IBgkUKsAqCOPa3p/Y27/74c7eoYDllkgMP23esyQbGosbLB1S4hxv+YLo1/QZZYq8Majr9Wt9AYkDcIsCnKLQAQClsrTp0soS7Wc72yWdcSxv65p9VnFBbU8y7RhPsVlQrchv59YjZrCSgZQOLTMmJxU4luarb2c8MdevpctqsKhwiLRzjS94GUd6HAplCRYqeA/Ubo1z245o+lC3TJbglsRdY/mEEcOoeM+fNs+qFAVVqvSPA5X/ZXNAURRIUkvWVgeAJOPYGo5fUm9lq25t6Xx1fTCCU9xONDptONpq2dRgU/+W4tzx+N6+JX/u8yGVGRieDuvtszP1J7Xp2UEGAIcgwC0JO3PTven1/+7+9u6hq+kMwKcZGzwfPckU1gXCt5xU4Lh1uO7MtXYwHbaskCVMtCqv5MvblUydlDU9YoaOW3d38lqLsmOf4AIHimWp6QSX/Y62RPKM5Xu660dekOxJptAzRgQubBhojSXnH2OzrIgYRsVHmdX/xAInimRxOwCoAvWfUOC4Y5LNcltzNI6maBxLdna0ZiNURZIIl7Tv9fu2eOKM9kyYWiAEdRbljXx1WOML3aYjbS6UK7JXpXRwdyy9mRuc453BIO5v7w4VSmIzpcPh9OH2c8z3FH7XAFcGMv3Vk0zh+V7vE61Ox5kSQTR7VsIBIaTrNX/rHzy5O5kCATDZqmKS1fJS3g76CjmgKDySuLVGVWDJhBQVgeKDYPiaYxzWFb+aXHtCsSxtyXfierzLfndQMwZf8foBpBfI3MMqxiE2xxIXNUeHr45kzghGzaSWWOKb3/lk94IYYyiTJVxZU4bjnfanAICAMI602DTGbXe2dV34USgCjQNPdvUvHSkKv6Y3ZO32STYLpjlsj+Vrc7EsNTlFYUZfSoPOgWWtewFgar60c93Omb+ZUrdhaUvngztjaZFeXFaE71eUPAUQEGCofgCwLhBedGdbFwzOce+ernPOLnFTjXFbMDPRT3I74BbFoUXhOKf93u+UeW67vXUvdM7x2N4+AGnfrkSWke9i4afR+IK2eHpI6lQFblnKawKt9aezligyqi3K2yIhiXJFGjpmWx+MYH0wogBozJdfIATbTnQ0emRpq0tI+4Vhg+HO1i4AOD9fniw1qoLzSgvf8kji1v2l+yo4oCgUSoLfq/DcMMftmFehyOu2RGJXvNI/WPn9imJPjSqP6YSplPrvm1o3f/PG2KudiSSE9MtGLe0BXZ+4PhCelQ0JEgDzi92jygkbRtV1ze0vUxCUyhJ+UFmCJXWVhSol/nzv3R6N8/ZEEnHDQFcyBZ1zNSvajkRynksUQEFQZ1HhkaW8AzLH7bjxrGL3or/1DyKkGzCGTnJz4ahUZbzpCzy8IRiBSxQwwari6WMa7GPZySol/ud6vIsHNB1bI3EkDFbYn9JmWAUBVgpUKfImmZJwNr1MSfgEl33FNLv10pZ4AhwElADTHTac7im4Lp+ZEtaNao70+cp3yz15AxwAMKDpcIkipjusmGBRXgWAn9VXnPrPUGTNnkQqfe1/zLYDdaqMMkXaaBEE71XVpS3L23smDg4d9u3bVxQEqkBRKku4vKq095ySwv0K56tiXCfas5z25bOc9uV/6fOtXrKzvVIgBM/1DKy5prbcY6HUN1a+CVb1tV9OrGq6ekdbIwUw0vlinIubQtHFLw8Mz+0iScTC8uJZI8uI6qzstCJX/8luR4lLEttOL3L9cCxBAMCCcs+pTpE+FzOMkhJJ+tjgXMmKokAUW26eUAkBJDndaXtkLLvXJgi9t0+qKZ3vKbhlVyxxXpSx8uH7O8MQgNValNUWSn3X11UsAOc4v8wzf3+OY6PD9rs7GmoaOxLJeQBAAc0tiTtvqq+ESEh8lsu+PHennFfo+smvptRGm8Kxy3TOLTKl4RlO64MzHNYH871jutP28PW1Fb/WObOcW1J0br40HKBXVZV644x5JlvVlXUW5U0g7eSvnD7lxA8CkVu7k8kTNcZtfIyAzCSr+pJNEHpEQhILK0pmznDaL2mKRC/za0ZD+p7U6L6SKQ2VK9L641z2e+vU9PsOR8Z9dZwB4ryPtmnvBEIgABodNtzdULPi1CLX1fnMpyxhw6i65tO2Tp1xPHrUhPKsE92RSM27YnvLmtczVzAIgKuqSvHQkRPGuslmYvKlMO6r4wRgAh1ymrAtEsMdrXsv/TAQuZntZ8exC0L3VdVlS6Y77UOr8p548rTFO9rWjLyrM9Gq4srqsh9+plaYmHyBHNQfGb3mDTx97sc7FmZvPoqEYJJFxS0TKtddXFE8ZyzbNcGY25/SJxfI4u53B0N339rSeemmUBR6phybQHHvlLr2/6woPkamNJyvDBOTL4uDEgUH6H3tPbHrmvcoI3MJAE5xu3BjfcWj/+52/kIV6CibX+Pc9s9g9Jr7O3rufMXrR3jEqbdECX5UVYqlE6unjnUN3cTky+Sg/0Y7YTD33Xu6B3/b0YOApo+6WS8QgkpFwgyHHZWKBEII+lIpbAnHIFGKclnC+mAY2dNihyjg26VFuG1i9cljXUM3Mfmy+Uzf+xTSjZo/9Hg3PdbZ62mOxYcO6PbHTKcdS+or3np7MPj19wIRiASY73Hj6pqyGSWytPkz1N3E5JDwmb8MLcGYe10gsvRPvd7FaweDaIkl9vt3hcc57XjwiPpfTLVZnv80Gl+gEBI4ym552vQhTA43Ptc3BAKAV9OP3hyKXrUxGPnRxnAUzdE4epIpRA0DHICVCihVJJxa6MK1teVnT7Sqea9WmJgcLnxuUWSJG6zIp+tHBnWjPqIblQnG3JyDKpQE7aLQXSiKO0oUafPhdiPSxCSXL0wUuWRPQQ/Hb2swMdkfh0wUJib/XzH/0xYTkxxMUZiY5GCKwsQkB1MUJiY5mKIwMcnBFIWJSQ6mKExMcjBFYWKSgykKE5McTFGYmORgisLEJAdTFCYmOZiiMDHJwRSFiUkO/weW8B80W9qwCQAAAABJRU5ErkJggg==" alt="Atlântico Transportes" class="brand-logo-img">
+      <button class="icon-btn icon-btn-mini" id="trocarLogoPadrao" title="Trocar logo padrão do sistema" aria-label="Trocar logo padrão do sistema" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 9l5-5 5 5M12 4v12"/></svg>
+      </button>
+      <input type="file" id="logoPadraoInput" accept="image/png,image/svg+xml,image/webp" hidden>
     </div>
     <div class="divider"></div>
     <div class="title">Saldo de Combustível</div>
@@ -743,6 +764,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 
       <div class="fab-row">
         <button class="btn btn-add" id="openIncluirSaldo">+ Incluir saldo</button>
+        <button class="btn btn-ghost" id="openLancarSuprimento">+ Lançar Suprimento</button>
       </div>
 
       <div class="filters">
@@ -1088,15 +1110,8 @@ const SEED_UNIDADES = [
   { id:"aracaju",      nome:"Aracaju",             estado:"SE", tanques:[] },
 ];
 
-/* Unidades que emitem relatório com marca própria (franquia/razão social diferente
-   da matriz) em vez da marca padrão "Atlântico Transportes". Usada só no cabeçalho
-   do PDF/prévia de relatório quando o filtro de unidades do relatório resulta em
-   uma única unidade. */
-const MARCA_UNIDADE = {
-  aracaju: { nome:"BOA VISTA", cor:"#3E9FD1" },
-};
-
 function dstr(d){ return d.toISOString().slice(0,10); }
+function prevDate(iso){ const d=new Date(iso+"T00:00:00Z"); d.setUTCDate(d.getUTCDate()-1); return dstr(d); }
 function daysAgo(n){ const d=new Date(); d.setUTCHours(0,0,0,0); d.setUTCDate(d.getUTCDate()-n); return dstr(d); }
 
 // Sem lançamentos de exemplo — o uso real começa após o cadastro dos tanques.
@@ -1115,12 +1130,17 @@ let agendamentos = []; // [{id,unidadeId,tanqueId,data,obs,criadoPor,criadoEm}]
 // [{id,unidadeId,bombaId,data,litragemPadrao,encerranteInicial,pulls:[{litragem,encerranteFinal}],
 //   diferencaMedia,status,obs,criadoPor,criadoEm}]
 let afericoesBomba = [];
+// Suprimento: lançado por GRUPO de bomba (não por tanque individual) + data — um registro
+// por grupo/dia. id = unidadeId+"__"+grupoKey+"__"+data (upsert, igual ao lançamento).
+// [{id,unidadeId,grupoKey,tanqueIds,data,supEntrada,supSaida,obs,criadoPor,criadoEm}]
+let suprimentos = [];
+let configGeral = { logoPadraoDataUrl: null }; // logo padrão do sistema, editável (Cadastro)
 let dbNs = null, assetsNs = null, dbAvailable = false;
 let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-23-v38";
+const APP_BUILD = "2026-10-26-v39";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1196,6 +1216,14 @@ async function initData(){
     if(abRes && abRes.docs && abRes.docs.length){
       afericoesBomba = abRes.docs.filter(d=>d.exists).map(d=>d.data()).filter(Boolean);
     }
+    const spRes = await dbNs.collection("suprimentos").get();
+    if(spRes && spRes.docs && spRes.docs.length){
+      suprimentos = spRes.docs.filter(d=>d.exists).map(d=>d.data()).filter(Boolean);
+    }
+    try{
+      const cgDoc = await dbNs.doc("config/geral").get();
+      if(cgDoc && cgDoc.exists && cgDoc.data()) configGeral = Object.assign({logoPadraoDataUrl:null}, cgDoc.data());
+    }catch(e){ /* config geral é opcional — segue com o padrão */ }
     showDbWarning(null);
   }catch(e){
     console.error("[saldo] falha ao ler/gravar unidades ou lancamentos:", e);
@@ -1419,18 +1447,60 @@ function saldoAbastecimentoAte(tanque, dataLimite){
   }
   return saldo;
 }
-// saldo acumulado do Suprimento por grupo de tanques (mesma bomba) até uma data
+// saldo acumulado do Suprimento por grupo de tanques (mesma bomba) até uma data.
+// Lê da coleção própria "suprimentos" (tela "Lançar Suprimento"), não mais dos
+// lançamentos de saldo — o Suprimento é um lançamento de bomba, não de tanque.
+function grupoKeyDe(tanqueIds){ return (tanqueIds||[]).slice().sort().join(","); }
 function saldoSuprimentoAteGrupo(unidadeId, tanqueIds, dataLimite){
   const u = unidades.find(x=>x.id===unidadeId);
   const tanques = u ? u.tanques.filter(t=>tanqueIds.includes(t.id)) : [];
   let saldo = tanques.reduce((s,t)=>s+t.saldoInicial,0);
-  const ids = new Set(tanqueIds);
-  const all = lancamentos.filter(l=>ids.has(l.tanqueId)).sort((a,b)=>a.data<b.data?-1:1);
-  for(const l of all){
-    if(l.data > dataLimite) break;
-    saldo += (l.supEntrada||0) - (l.supSaida||0);
+  const grupoKey = grupoKeyDe(tanqueIds);
+  const all = suprimentos.filter(s=>s.unidadeId===unidadeId && s.grupoKey===grupoKey).sort((a,b)=>a.data<b.data?-1:1);
+  for(const s of all){
+    if(s.data > dataLimite) break;
+    saldo += (s.supEntrada||0) - (s.supSaida||0);
   }
   return saldo;
+}
+// grupos selecionáveis de Suprimento de uma unidade: um por bomba cadastrada
+// (soma os tanques vinculados), e um por tanque isolado sem bomba.
+function gruposSuprimentoDaUnidade(u){
+  if(!u) return [];
+  const grupos = [];
+  const keysVistos = new Set();
+  const idsEmBomba = new Set();
+  bombasDaUnidade(u).forEach(b=>{
+    const ids = (b.tanqueIds||[]).slice().sort();
+    if(!ids.length) return;
+    ids.forEach(id=>idsEmBomba.add(id));
+    const key = ids.join(",");
+    if(keysVistos.has(key)) return;
+    keysVistos.add(key);
+    const tanques = u.tanques.filter(t=>ids.includes(t.id));
+    if(!tanques.length) return;
+    grupos.push({ grupoKey:key, tanqueIds:ids, label:`Bomba ${b.numero} — tanque(s) ${tanques.map(t=>t.numero).join(", ")} (${tanques[0].produto})` });
+  });
+  u.tanques.forEach(t=>{
+    if(idsEmBomba.has(t.id)) return;
+    grupos.push({ grupoKey:String(t.id), tanqueIds:[t.id], label:`Tanque ${t.numero} (${t.produto}) — sem bomba vinculada` });
+  });
+  return grupos;
+}
+async function saveSuprimento(s){
+  const idx = suprimentos.findIndex(x=>x.id===s.id);
+  if(idx>=0) suprimentos[idx]=s; else suprimentos.push(s);
+  if(!dbAvailable || !dbNs){ showToast("Sem conexão com o banco — Suprimento mantido só nesta sessão (não foi salvo)."); return; }
+  try{ await dbNs.doc("suprimentos/"+s.id).set(s); }
+  catch(e){ console.error("[saldo] saveSuprimento falhou:", e); showToast("Não foi possível salvar no servidor (" + (e && e.message ? e.message : "erro") + ") — mantido só nesta sessão."); }
+}
+async function excluirSuprimento(id){
+  if(!(await askConfirm("Excluir este lançamento de Suprimento?"))) return;
+  suprimentos = suprimentos.filter(x=>x.id!==id);
+  if(typeof renderTable==="function") renderTable();
+  if(!dbAvailable || !dbNs){ showToast("Sem conexão com o banco — exclusão aplicada só nesta sessão."); return; }
+  try{ await dbNs.doc("suprimentos/"+id).delete(); showToast("Suprimento excluído."); }
+  catch(e){ console.error("[saldo] excluirSuprimento falhou:", e); showToast("Não foi possível excluir no servidor (" + (e && e.message ? e.message : "erro") + ")."); }
 }
 // melhor saldo conhecido de um tanque agora (físico do último lançamento, senão o de abastecimento)
 function saldoAtualTanque(t){
@@ -2120,11 +2190,14 @@ const STATUS_LABEL = {ok:"Conciliado", warn:"Fora do limite", bad:"Divergente", 
 const PDFC = { TEAL:'#0e7c86', TEAL_DARK:'#0a5a62', INK:'#1a1a1a', GRAY:'#666666', LIGHT:'#f2f2f2', BORDER:'#dddddd', GREEN:'#1a7a4c', AMBER:'#9a6a0d', RED:'#a9342c', BLUE:'#1B57B7' };
 function pdfNow(){ return new Date().toLocaleString("pt-BR"); }
 function pdfHeaderContent(titulo, subLinhas, marca){
-  marca = marca || { nome:"ATLÂNTICO TRANSPORTES", cor:PDFC.TEAL };
+  marca = marca || marcaPadrao();
+  const brandNode = marca.logoDataUrl
+    ? { image: marca.logoDataUrl, width: 84, margin:[0,0,0,4] }
+    : { text:marca.nome, color:marca.cor, bold:true, fontSize:9, characterSpacing:1, margin:[0,0,0,2] };
   return [
     { columns:[
       { width:'*', stack:[
-        { text:marca.nome, color:marca.cor, bold:true, fontSize:9, characterSpacing:1, margin:[0,0,0,2] },
+        brandNode,
         { text:titulo, fontSize:18, bold:true, color:PDFC.INK, margin:[0,0,0,2] },
         ...(subLinhas||[]).filter(Boolean).map(l=>({text:l, fontSize:9.5, color:PDFC.GRAY})),
       ] },
@@ -2271,10 +2344,17 @@ function agruparPorUnidadeProduto(grupos){
 }
 
 /* ---- Modelo de relatório: dados puros, renderizados tanto em HTML (prévia) quanto em PDF ---- */
-const MARCA_PADRAO = { nome:"ATLÂNTICO TRANSPORTES", cor:PDFC.TEAL };
+// marca padrão do sistema: nome/cor fixos, mas a logo é a configurada em configGeral
+// (editável pelo botão no cabeçalho). Cada unidade pode ter sua própria logo (Cadastro),
+// que substitui a logo padrão nos relatórios dessa unidade.
+function marcaPadrao(){
+  return { nome:"ATLÂNTICO TRANSPORTES", cor:PDFC.TEAL, logoDataUrl: configGeral.logoPadraoDataUrl||null };
+}
 function marcaParaSelecao(lista){
-  if(lista && lista.length===1 && MARCA_UNIDADE[lista[0].id]) return MARCA_UNIDADE[lista[0].id];
-  return MARCA_PADRAO;
+  if(lista && lista.length===1 && lista[0] && lista[0].logoDataUrl){
+    return { nome: lista[0].nome, cor: PDFC.TEAL, logoDataUrl: lista[0].logoDataUrl };
+  }
+  return marcaPadrao();
 }
 function criarModelo(titulo, subtitulo, marca){
   return { titulo, subtitulo, marca: marca || marcaParaSelecao(unidadesSelecionadasOuTodas()), kpis:[], blocos:[] };
@@ -2504,11 +2584,11 @@ function modeloParaHtml(m){
     const linhas = b.linhas.map(cells=>`<tr>${cells.map((c,i)=>`<td${b.numCols.includes(i)?' class="num"':''}>${c}</td>`).join("")}</tr>`).join("");
     return `${b.titulo?`<h4 class="rpt-subhead">${b.titulo}</h4>`:""}<table class="rpt-table"><thead><tr>${b.headers.map((h,i)=>`<th${b.numCols.includes(i)?' class="num"':''}>${h}</th>`).join("")}</tr></thead><tbody>${linhas}</tbody></table>`;
   }).join("");
-  const marca = m.marca || MARCA_PADRAO;
+  const marca = m.marca || marcaPadrao();
   return `<div class="rpt-header">
     <div class="rpt-header-row">
       <div>
-        <div class="rpt-brand" style="color:${marca.cor}">${marca.nome}</div>
+        ${marcaBrandHtml(marca)}
         <h1>${m.titulo}</h1>
         <p class="rpt-sub">${m.subtitulo}</p>
       </div>
@@ -2516,6 +2596,12 @@ function modeloParaHtml(m){
     </div>
     <div class="rpt-meta"><span>Gerado em ${geradoEm}</span><span>Gerado por: ${session.nome}</span></div>
   </div>${kpisHtml}${blocosHtml}`;
+}
+// marca pode trazer uma logo (imagem) além do nome/cor em texto — usado tanto na
+// prévia HTML dos relatórios quanto no detalhe impresso de um lançamento
+function marcaBrandHtml(marca){
+  if(marca && marca.logoDataUrl) return `<img class="rpt-brand-img" src="${marca.logoDataUrl}" alt="${marca.nome||''}">`;
+  return `<div class="rpt-brand" style="color:${marca.cor}">${marca.nome}</div>`;
 }
 function modeloParaPdfContent(m){
   const content = [...pdfHeaderContent(m.titulo, [m.subtitulo, `Gerado em ${pdfNow()} · por ${session.nome}`], m.marca)];
@@ -2585,13 +2671,14 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
             </div>
             <div class="field"><label>Tanque</label><select id="mTanque"></select></div>
           </div>
+          <div class="banner-bomba" id="mBombaBanner" hidden></div>
+          <div class="saldo-atual-box" id="mSaldoAtualBox"></div>
           <div class="grid2">
             <div class="field"><label>Data</label><input type="date" id="mData" value="${prefillData||dstr(new Date())}"></div>
             <div class="field"><label>Saldo físico (régua)</label><input type="number" id="mFisico" placeholder="ex: 9200" min="0"></div>
           </div>
 
-          <div class="section-label">Movimento do dia</div>
-          <p class="hint" id="mSupHint" style="margin:-4px 0 10px"></p>
+          <div class="section-label">Movimento do dia (Abastecimento)</div>
           <div class="radio-row" id="mHouve">
             <div class="radio-opt active" data-v="nao">Sem entrada hoje</div>
             <div class="radio-opt" data-v="sim">Teve entrada (nota)</div>
@@ -2600,13 +2687,7 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
             <div class="field" id="mEntradaWrap" hidden><label>Entrada Abastecimento (l)</label><input type="number" id="mEntrada" value="0" min="0"></div>
             <div class="field"><label>Saída Abastecimento (l)</label><input type="number" id="mSaida" value="0" min="0"></div>
           </div>
-
-          <div class="section-label">Suprimento</div>
-          <p class="hint" style="margin:-4px 0 10px">Vem preenchido igual ao Abastecimento — edite aqui só se o Suprimento lançou um valor diferente neste dia.</p>
-          <div class="grid2">
-            <div class="field"><label>Entrada Suprimento (l)</label><input type="number" id="mSupEntrada" value="0" min="0"></div>
-            <div class="field"><label>Saída Suprimento (l)</label><input type="number" id="mSupSaida" value="0" min="0"></div>
-          </div>
+          <p class="hint" style="margin:-4px 0 10px">O Suprimento agora é lançado em uma tela própria — use "+ Lançar Suprimento" no painel.</p>
 
           <div class="section-label">Anexos</div>
           <div class="upload-row">
@@ -2634,26 +2715,15 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
 
   const mUnidade = document.getElementById("mUnidade");
   const mTanque = document.getElementById("mTanque");
-  // Suprimento acompanha Abastecimento ao vivo (Entrada→Entrada, Saída→Saída) até o
-  // usuário digitar algo diferente naquele campo específico — aí para de espelhar
-  // só aquele campo (sem caixa de marcar escondendo nada: os dois campos do
-  // Suprimento ficam sempre visíveis e editáveis). Declarado aqui (antes de
-  // fillTanques) porque getMovimento()/updatePreview() já são chamados durante o
-  // preenchimento inicial do formulário.
-  let supEntradaTocado = false, supSaidaTocado = false;
-  const mSupEntradaEl = document.getElementById("mSupEntrada");
-  const mSupSaidaEl = document.getElementById("mSupSaida");
-  mSupEntradaEl.addEventListener("input", ()=>{ supEntradaTocado = true; updatePreview(); });
-  mSupSaidaEl.addEventListener("input", ()=>{ supSaidaTocado = true; updatePreview(); });
   function fillTanques(){
     const u = unidades.find(x=>x.id===mUnidade.value);
     const tanquesVisiveis = u ? u.tanques.filter(t=> isEdit || tanqueAtivo(t)) : [];
     mTanque.innerHTML = tanquesVisiveis.map(t=>`<option value="${t.id}">Tanque ${t.numero} — ${t.produto}</option>`).join("");
     if(prefillTanqueId) mTanque.value = prefillTanqueId;
-    updateSupHint(); updatePreview();
+    updateSupHint(); updateSaldoAtualBox(); updatePreview();
   }
   mUnidade.onchange = fillTanques;
-  mTanque.onchange = ()=>{ updateSupHint(); updatePreview(); };
+  mTanque.onchange = ()=>{ updateSupHint(); updateSaldoAtualBox(); updatePreview(); };
   if(prefillTanqueId){
     const own = unidades.find(u=>u.tanques.some(t=>t.id===prefillTanqueId));
     if(own) mUnidade.value = own.id;
@@ -2670,25 +2740,18 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     row.querySelectorAll(".radio-opt").forEach(opt=>{
       opt.addEventListener("click",()=>{
         row.querySelectorAll(".radio-opt").forEach(o=>o.classList.remove("active"));
-        opt.classList.add("active");
+  opt.classList.add("active");
         document.getElementById(wrapId).hidden = opt.dataset.v!=="sim";
         if(opt.dataset.v!=="sim"){
           const inp = document.getElementById(wrapId).querySelector("input"); if(inp) inp.value=0;
         }
-        if(!supEntradaTocado) mSupEntradaEl.value = document.getElementById("mEntrada").value||0;
         updatePreview();
       });
     });
   }
   setupToggle("mHouve","mEntradaWrap");
-  document.getElementById("mEntrada").addEventListener("input", ()=>{
-    if(!supEntradaTocado) mSupEntradaEl.value = document.getElementById("mEntrada").value||0;
-    updatePreview();
-  });
-  document.getElementById("mSaida").addEventListener("input", ()=>{
-    if(!supSaidaTocado) mSupSaidaEl.value = document.getElementById("mSaida").value||0;
-    updatePreview();
-  });
+  document.getElementById("mEntrada").addEventListener("input", updatePreview);
+  document.getElementById("mSaida").addEventListener("input", updatePreview);
 
   if(isEdit){
     document.getElementById("mFisico").value = (editLancamento.saldoFisico===null||editLancamento.saldoFisico===undefined) ? "" : editLancamento.saldoFisico;
@@ -2699,56 +2762,73 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
       document.getElementById("mEntradaWrap").hidden = false;
       document.getElementById("mEntrada").value = editLancamento.abEntrada;
     }
-    // ao editar, os valores de Suprimento vêm do lançamento salvo — não espelha mais
-    supEntradaTocado = true; supSaidaTocado = true;
-    mSupEntradaEl.value = editLancamento.supEntrada||0;
-    mSupSaidaEl.value = editLancamento.supSaida||0;
     updatePreview();
   }
 
+  // Banner visual: aparece quando o tanque escolhido compartilha bomba com outro(s)
+  // tanque(s) — o Suprimento daquela bomba soma o grupo todo, não só este tanque.
   function updateSupHint(){
     const t = currentTanque();
-    if(!t) return;
+    const banner = document.getElementById("mBombaBanner");
+    if(!t){ banner.hidden = true; return; }
     const irmaos = tanquesDoGrupo(mUnidade.value, t.id).filter(x=>x.id!==t.id);
-    const hint = document.getElementById("mSupHint");
     if(irmaos.length){
-      hint.textContent = `Este tanque está na mesma bomba de ${irmaos.map(x=>"Tanque "+x.numero).join(", ")} — o saldo lançado aqui soma automaticamente com o saldo mais recente do(s) outro(s) tanque(s) na comparação com o Suprimento.`;
+      banner.hidden = false;
+      banner.innerHTML = `⛽ <b>Tanque na mesma bomba de ${irmaos.map(x=>"Tanque "+x.numero).join(", ")}</b> — o Suprimento desta bomba soma o grupo todo (lançado na tela própria "+ Lançar Suprimento").`;
     } else {
-      hint.textContent = `Produto: ${t.produto}.`;
+      banner.hidden = true;
     }
+  }
+  // Caixa de saldo atual: mostra o saldo já registrado ANTES de o usuário digitar
+  // qualquer coisa, para orientar o lançamento (valor de referência, não editável aqui).
+  function updateSaldoAtualBox(){
+    const t = currentTanque();
+    const box = document.getElementById("mSaldoAtualBox");
+    if(!t){ box.innerHTML = ""; return; }
+    const u = unidades.find(x=>x.id===mUnidade.value);
+    const data = document.getElementById("mData").value || dstr(new Date());
+    const grupoIds = grupoDeTanques(u, t.id);
+    const saldoAbAtual = saldoAbastecimentoAte(t, prevDate(data));
+    const saldoSupAtual = saldoSuprimentoAteGrupo(u.id, grupoIds, data);
+    const fisicoAtual = fisicoConhecidoAte(t, prevDate(data));
+    box.innerHTML = `<div class="saldo-atual-title">Saldo atual deste tanque (antes deste lançamento)</div>
+      <div class="saldo-atual-grid">
+        <div><span>Abastecimento</span><b>${fmtL(saldoAbAtual)}</b></div>
+        <div><span>Suprimento (grupo)</span><b>${fmtL(saldoSupAtual)}</b></div>
+        <div><span>Último físico</span><b>${fmtL(fisicoAtual)}</b></div>
+      </div>`;
   }
   function currentTanque(){
     const u = unidades.find(x=>x.id===mUnidade.value);
     return u ? u.tanques.find(t=>t.id===mTanque.value) : null;
   }
 
-  // valores que alimentam Abastecimento e Suprimento a partir do formulário
+  // valores que alimentam o Abastecimento a partir do formulário (Suprimento agora
+  // é lançado só em "+ Lançar Suprimento")
   function getMovimento(){
     const entrada = Number(document.getElementById("mEntradaWrap").hidden?0:document.getElementById("mEntrada").value||0);
     const saida = Number(document.getElementById("mSaida").value||0);
-    const supE = Number(mSupEntradaEl.value||0);
-    const supS = Number(mSupSaidaEl.value||0);
-    return { abE:entrada, abS:saida, supE, supS };
+    return { abE:entrada, abS:saida };
   }
 
   ["mData","mFisico"].forEach(id=>{
-    document.getElementById(id).addEventListener("input", updatePreview);
+    document.getElementById(id).addEventListener("input", ()=>{ updateSaldoAtualBox(); updatePreview(); });
   });
 
   function updatePreview(){
     const t = currentTanque(); if(!t) return;
     const u = unidades.find(x=>x.id===mUnidade.value);
     const data = document.getElementById("mData").value || dstr(new Date());
-    const {abE, abS, supE, supS} = getMovimento();
+    const {abE, abS} = getMovimento();
     const fisico = document.getElementById("mFisico").value===""? null : Number(document.getElementById("mFisico").value);
 
     const grupoIds = grupoDeTanques(u, t.id);
     const saldoAbAnterior = saldoAbastecimentoAte(t, prevDate(data));
     const saldoAbNovo = saldoAbAnterior + abE - abS;
-    const saldoSupAnterior = saldoSuprimentoAteGrupo(u.id, grupoIds, prevDate(data));
-    const saldoSupNovo = saldoSupAnterior + supE - supS;
+    // Suprimento não é editado aqui — usa o saldo já lançado na tela própria, na mesma data
+    const saldoSupAtual = saldoSuprimentoAteGrupo(u.id, grupoIds, data);
     const somaOutros = tanquesDoGrupo(u.id,t.id).filter(x=>x.id!==t.id).reduce((s,x)=>s+saldoAbastecimentoAte(x,data),0);
-    const diffAbSup = saldoSupNovo - (saldoAbNovo + somaOutros);
+    const diffAbSup = saldoSupAtual - (saldoAbNovo + somaOutros);
     const cls = classificar(diffAbSup, fisico, saldoAbNovo);
 
     const titles = {
@@ -2774,7 +2854,7 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
         <div class="row"><span>Entrada</span><b class="num">${fmtL(abE)}</b></div>
         <div class="row"><span>Saída</span><b class="num saida-val">${fmtL(abS)}</b></div>
         <div class="row"><span>Saldo Abastecimento</span><b class="num">${fmtL(saldoAbNovo)}</b></div>
-        <div class="row"><span>Saldo Suprimento</span><b class="num">${fmtL(saldoSupNovo)}</b></div>
+        <div class="row"><span>Saldo Suprimento (grupo)</span><b class="num">${fmtL(saldoSupAtual)}</b></div>
         <div class="row"><span>Saldo Físico</span><b class="num">${fmtL(fisico)}</b></div>
         <div class="row"><span>Abastec. × Suprim.</span><b>${matchTxt}</b></div>
         <div class="row"><span>Capacidade do tanque</span><b class="num">${fmtL(t.capacidade)}</b></div>
@@ -2816,7 +2896,7 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     if(!data){ showToast("Informe a data."); return; }
     saveBtn.disabled = true; saveBtn.textContent = "Salvando...";
     try{
-      const {abE, abS, supE, supS} = getMovimento();
+      const {abE, abS} = getMovimento();
       const fisico = document.getElementById("mFisico").value===""? null : Number(document.getElementById("mFisico").value);
       const obs = document.getElementById("mObs").value.trim();
 
@@ -2827,9 +2907,11 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
         if(assetsNs && modalState.fotoFile){ const r = await assetsNs.upload(modalState.fotoFile); fotoAssetId = r.id; }
       }catch(e){ showToast("Falha ao enviar anexo — lançamento salvo sem ele."); }
 
+      // Suprimento não é mais salvo aqui — é lançado na tela própria "+ Lançar
+      // Suprimento" (coleção "suprimentos"), por bomba/grupo de tanques.
       const l = {
         id: t.id+"__"+data, unidadeId:u.id, tanqueId:t.id, produto:t.produto, data,
-        abEntrada:abE, abSaida:abS, supEntrada:supE, supSaida:supS,
+        abEntrada:abE, abSaida:abS,
         saldoFisico:fisico, printAssetId, fotoAssetId, obs, exemplo:false,
       };
       await saveLancamento(l);
@@ -2860,8 +2942,7 @@ function blocosTanqueDetalhe(g, paraImpressao){
         <div class="calc-preview">
           <div class="row"><span>Saldo Abastecimento</span><b class="num">${fmtL(saldoAbT)}</b></div>
           <div class="row"><span>Saldo Físico</span><b class="num">${fmtL(fisicoT)}</b></div>
-          ${l?`<div class="row"><span>Entrada / Saída (Abastecimento)</span><b class="num">${fmtL(l.abEntrada)} / ${fmtL(l.abSaida)}</b></div>
-          <div class="row"><span>Entrada / Saída (Suprimento)</span><b class="num">${fmtL(l.supEntrada)} / ${fmtL(l.supSaida)}</b></div>`:""}
+          ${l?`<div class="row"><span>Entrada / Saída (Abastecimento)</span><b class="num">${fmtL(l.abEntrada)} / ${fmtL(l.abSaida)}</b></div>`:""}
           <div class="row"><span>Capacidade do tanque</span><b class="num">${fmtL(t.capacidade)}</b></div>
         </div>
         ${occBarHtml(ocupacao(t.capacidade, fisicoT!==null?fisicoT:saldoAbT))}
@@ -2878,12 +2959,14 @@ function blocosTanqueDetalhe(g, paraImpressao){
   }).join("");
 }
 function detalheCorpoHtml(g, temExemplo){
+  const supDoDia = suprimentos.find(s=>s.unidadeId===g.u.id && s.grupoKey===g.grupoKey && s.data===g.data);
   return `<p class="hint">${fmtDate(g.data)} · Resumo do dia · ${g.tanques.length} tanque${g.tanques.length>1?"s":""} ${temExemplo?'· <span class="badge-example">exemplo</span>':""}</p>
           <div class="calc-preview">
             <div class="row"><span>Entrada (total)</span><b class="num">${fmtL(g.entradaTotal)}</b></div>
             <div class="row"><span>Saída (total)</span><b class="num saida-val">${fmtL(g.saidaTotal)}</b></div>
             <div class="row"><span>Saldo Abastecimento (total)</span><b class="num">${fmtL(g.saldoAb)}</b></div>
-            <div class="row"><span>Saldo Suprimento</span><b class="num">${fmtL(g.saldoSup)}</b></div>
+            <div class="row"><span>Saldo Suprimento (grupo/bomba)</span><b class="num">${fmtL(g.saldoSup)}</b></div>
+            ${supDoDia?`<div class="row"><span>Entrada / Saída Suprimento neste dia</span><b class="num">${fmtL(supDoDia.supEntrada)} / ${fmtL(supDoDia.supSaida)}</b></div>`:""}
             <div class="row"><span>Saldo Físico (total)</span><b class="num">${g.fisicoCompleto?fmtL(g.saldoFisico):"Aguardando leitura em todos os tanques"}</b></div>
             <div class="row"><span>Status</span>${badgeHtml(g.cls)}</div>
           </div>
@@ -2894,7 +2977,7 @@ function imprimirDetalhe(g, temExemplo){
   const head = `<div class="rpt-header">
     <div class="rpt-header-row">
       <div>
-        <div class="rpt-brand" style="color:${marca.cor}">${marca.nome}</div>
+        ${marcaBrandHtml(marca)}
         <h1>${g.u.nome} · ${g.produto}</h1>
         <p class="rpt-sub">Resumo do dia — ${fmtDate(g.data)}</p>
       </div>
@@ -2965,6 +3048,11 @@ function renderCadastro(){
         <div>
           <h3>${u.nome}${uAtiva?"":' <span class="badge-inativo">Inativa</span>'}</h3>
           <div class="muted">${estadoNome(u.estado)} · ${u.tanques.length} tanque(s) · ${[...new Set(u.tanques.map(t=>t.produto))].join(" / ")}</div>
+          <div class="unit-logo-row">
+            ${u.logoDataUrl ? `<img src="${u.logoDataUrl}" alt="logo ${u.nome}" class="unit-logo-thumb">` : `<span class="muted" style="font-size:12px">Sem logo própria — usa a logo padrão do sistema nos relatórios</span>`}
+            <button type="button" class="btn btn-ghost btn-mini" data-trocar-logo-unidade="${u.id}">Trocar logo</button>
+            ${u.logoDataUrl?`<button type="button" class="btn btn-ghost btn-mini" data-remover-logo-unidade="${u.id}">Remover</button>`:""}
+          </div>
         </div>
         <div class="fab-row" style="margin:0;gap:8px">
           <button class="btn btn-ghost" data-toggle-unidade="${u.id}">${uAtiva?"Desativar":"Reativar"}</button>
@@ -3052,6 +3140,15 @@ function renderCadastro(){
       if(!(await askConfirm(aviso+"Excluir esta unidade? Essa ação não pode ser desfeita."))) return;
       await removeUnidade(el.dataset.delUnidade);
     });
+  });
+  wrap.querySelectorAll("[data-trocar-logo-unidade]").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      if(!requireAdmin()) return;
+      abrirSeletorLogoUnidade(el.dataset.trocarLogoUnidade);
+    });
+  });
+  wrap.querySelectorAll("[data-remover-logo-unidade]").forEach(el=>{
+    el.addEventListener("click", ()=>removerLogoUnidade(el.dataset.removerLogoUnidade));
   });
 }
 function estadoNome(sigla){ return sigla; }
@@ -3296,6 +3393,106 @@ function openMsgAfericao(){
       sel.removeAllRanges(); sel.addRange(range);
       showToast("Não foi possível copiar automaticamente — texto selecionado, use Ctrl+C.");
     }
+  };
+}
+
+// Tela própria de Suprimento — separada do Incluir Saldo. O Suprimento é lançado
+// por BOMBA (ou por tanque isolado, se não houver bomba vinculando-o), nunca por
+// tanque dentro de um grupo de bomba, por isso o seletor aqui é "Bomba/Tanque".
+function openLancarSuprimento(prefillUnidadeId, prefillGrupoKey, prefillData){
+  const listaUnidades = (session.role==="admin" ? unidades : unidades.filter(u=>u.id===session.unidadeId)).filter(unidadeAtiva);
+  if(!listaUnidades.length){ showToast("Cadastre (ou reative) uma unidade antes de lançar Suprimento."); return; }
+  document.getElementById("supModalBackdrop")?.remove();
+  const html = `
+    <div class="modal-backdrop" id="supModalBackdrop">
+      <div class="modal" style="max-width:480px">
+        <div class="modal-head"><h2>Lançar Suprimento</h2><button class="close-x" id="supModalClose">&times;</button></div>
+        <div class="modal-body">
+          <div class="field"><label>Unidade</label>
+            <select id="supUnidade">${listaUnidades.map(u=>`<option value="${u.id}">${u.nome}</option>`).join("")}</select>
+          </div>
+          <div class="field"><label>Bomba / Tanque</label><select id="supGrupo"></select></div>
+          <div class="field"><label>Data</label><input id="supData" type="date" value="${prefillData||dstr(new Date())}"></div>
+          <div class="hint" id="supSaldoAtual" style="margin:2px 0 10px"></div>
+          <div class="field"><label>Entrada de Suprimento (l)</label><input type="number" id="supEntrada" value="0" min="0"></div>
+          <div class="field"><label>Saída de Suprimento (l)</label><input type="number" id="supSaida" value="0" min="0"></div>
+          <div class="field"><label>Observação (opcional)</label><input id="supObs" placeholder="ex: transferência entre tanques, carga recebida"></div>
+        </div>
+        <div class="modal-foot"><button class="btn btn-ghost" id="supCancel">Cancelar</button><button class="btn btn-primary" id="supSave">Salvar Suprimento</button></div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
+  const bd = document.getElementById("supModalBackdrop");
+  const selU = document.getElementById("supUnidade");
+  const selG = document.getElementById("supGrupo");
+  const inpData = document.getElementById("supData");
+  const inpE = document.getElementById("supEntrada");
+  const inpS = document.getElementById("supSaida");
+  const inpObs = document.getElementById("supObs");
+  const boxSaldo = document.getElementById("supSaldoAtual");
+  let editado = false;
+
+  function existenteFor(unidadeId, grupoKey, data){
+    return suprimentos.find(s=>s.unidadeId===unidadeId && s.grupoKey===grupoKey && s.data===data);
+  }
+  function preencherGrupos(){
+    const u = unidades.find(x=>x.id===selU.value);
+    const grupos = gruposSuprimentoDaUnidade(u);
+    selG.innerHTML = grupos.map(g=>`<option value="${g.grupoKey}">${g.label}</option>`).join("");
+  }
+  function atualizar(){
+    const u = unidades.find(x=>x.id===selU.value);
+    const grupos = gruposSuprimentoDaUnidade(u);
+    const g = grupos.find(x=>x.grupoKey===selG.value);
+    if(!u || !g){ boxSaldo.textContent=""; return; }
+    const data = inpData.value || dstr(new Date());
+    const saldoAteAnterior = saldoSuprimentoAteGrupo(u.id, g.tanqueIds, prevDate(data));
+    const existente = existenteFor(u.id, g.grupoKey, data);
+    boxSaldo.innerHTML = `Saldo de Suprimento acumulado até o dia anterior: <b>${fmtL(saldoAteAnterior)}</b>.`
+      + (existente ? ` Já existe lançamento para este grupo nesta data — salvar vai substituí-lo.` : "");
+    if(existente && !editado){
+      inpE.value = existente.supEntrada||0;
+      inpS.value = existente.supSaida||0;
+      inpObs.value = existente.obs||"";
+    } else if(!editado){
+      inpE.value = 0; inpS.value = 0; inpObs.value = "";
+    }
+  }
+  [inpE, inpS, inpObs].forEach(el=>el.addEventListener("input", ()=>{ editado = true; }));
+
+  if(session.role==="controlador"){ selU.value = session.unidadeId; selU.disabled = true; }
+  if(prefillUnidadeId) selU.value = prefillUnidadeId;
+  preencherGrupos();
+  if(prefillGrupoKey) selG.value = prefillGrupoKey;
+  atualizar();
+
+  selU.addEventListener("change", ()=>{ preencherGrupos(); editado=false; atualizar(); });
+  selG.addEventListener("change", ()=>{ editado=false; atualizar(); });
+  inpData.addEventListener("change", ()=>{ editado=false; atualizar(); });
+
+  document.getElementById("supModalClose").onclick = ()=>bd.remove();
+  document.getElementById("supCancel").onclick = ()=>bd.remove();
+  bd.addEventListener("click",(e)=>{ if(e.target===bd) bd.remove(); });
+  document.getElementById("supSave").onclick = async ()=>{
+    const u = unidades.find(x=>x.id===selU.value);
+    const grupos = gruposSuprimentoDaUnidade(u);
+    const g = grupos.find(x=>x.grupoKey===selG.value);
+    const data = inpData.value;
+    if(!u || !g){ showToast("Selecione a unidade e a bomba/tanque."); return; }
+    if(!data){ showToast("Informe a data."); return; }
+    if(session.role==="controlador" && u.id!==session.unidadeId){ showToast("Você não pode lançar Suprimento para esta unidade."); return; }
+    const existente = existenteFor(u.id, g.grupoKey, data);
+    const s = {
+      id: existente ? existente.id : ("sup-"+u.id+"-"+g.grupoKey.replace(/,/g,"_")+"-"+data+"-"+Date.now().toString(36)),
+      unidadeId:u.id, grupoKey:g.grupoKey, tanqueIds:g.tanqueIds, data,
+      supEntrada: Number(inpE.value||0), supSaida: Number(inpS.value||0),
+      obs: inpObs.value.trim(),
+      criadoPor: session.nome, criadoEm: new Date().toISOString(),
+    };
+    await saveSuprimento(s);
+    bd.remove();
+    renderTable();
+    showToast("Suprimento lançado.");
   };
 }
 
@@ -3686,6 +3883,82 @@ function initTheme(){
   document.getElementById("themeToggleLogin").addEventListener("click", toggleTheme);
 }
 
+/* ===================== Logo (padrão do sistema + por unidade) ===================== */
+const LOGO_PADRAO_FALLBACK = "data:image/png;base64,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";
+function fileParaDataUrl(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(reader.result);
+    reader.onerror = ()=>reject(reader.error || new Error("Falha ao ler arquivo"));
+    reader.readAsDataURL(file);
+  });
+}
+function aplicarLogoPadrao(){
+  const img = document.getElementById("brandLogoImg");
+  if(img) img.src = configGeral.logoPadraoDataUrl || LOGO_PADRAO_FALLBACK;
+}
+async function trocarLogoPadrao(file){
+  if(session.role!=="admin"){ showToast("Apenas administradores podem trocar a logo padrão."); return; }
+  try{
+    const dataUrl = await fileParaDataUrl(file);
+    configGeral = Object.assign({}, configGeral, { logoPadraoDataUrl: dataUrl });
+    aplicarLogoPadrao();
+    if(dbAvailable && dbNs){
+      try{ await dbNs.doc("config/geral").set(configGeral); }
+      catch(e){ console.error("[saldo] salvar logo padrão falhou:", e); showToast("Logo trocada aqui, mas não foi possível salvar no servidor."); return; }
+    } else {
+      showToast("Sem conexão com o banco — logo trocada só nesta sessão (não foi salva).");
+      return;
+    }
+    showToast("Logo padrão do sistema atualizada.");
+  }catch(e){
+    console.error("[saldo] trocarLogoPadrao falhou:", e);
+    showToast("Não foi possível ler essa imagem.");
+  }
+}
+function abrirSeletorLogoUnidade(unidadeId){
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/png,image/svg+xml,image/webp,image/jpeg";
+  input.addEventListener("change", async ()=>{
+    const file = input.files && input.files[0];
+    if(!file) return;
+    const u = unidades.find(x=>x.id===unidadeId);
+    if(!u) return;
+    try{
+      const dataUrl = await fileParaDataUrl(file);
+      u.logoDataUrl = dataUrl;
+      await saveUnidade(u);
+      renderCadastro();
+      showToast("Logo da unidade atualizada.");
+    }catch(e){
+      console.error("[saldo] abrirSeletorLogoUnidade falhou:", e);
+      showToast("Não foi possível ler essa imagem.");
+    }
+  });
+  input.click();
+}
+async function removerLogoUnidade(unidadeId){
+  if(!requireAdmin()) return;
+  const u = unidades.find(x=>x.id===unidadeId);
+  if(!u) return;
+  u.logoDataUrl = null;
+  await saveUnidade(u);
+  renderCadastro();
+  showToast("Logo da unidade removida — volta a usar a logo padrão do sistema.");
+}
+function initLogoPadrao(){
+  document.getElementById("trocarLogoPadrao").addEventListener("click", ()=>{
+    if(session.role!=="admin"){ showToast("Apenas administradores podem trocar a logo padrão."); return; }
+    document.getElementById("logoPadraoInput").click();
+  });
+  document.getElementById("logoPadraoInput").addEventListener("change", (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(file) trocarLogoPadrao(file);
+    e.target.value = "";
+  });
+}
+
 /* ===================== Views / Tabs ===================== */
 function setView(view){
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.view===view));
@@ -3736,8 +4009,10 @@ async function enterApp(){
   document.getElementById("tabCadastro").hidden = session.role!=="admin";
   document.getElementById("tabUsuarios").hidden = session.role!=="admin";
   document.getElementById("tabPanorama").hidden = session.role!=="admin";
+  document.getElementById("trocarLogoPadrao").hidden = session.role!=="admin";
   await loadUsuarios();
   await initData();
+  aplicarLogoPadrao();
   document.getElementById("exampleFlag").hidden = !lancamentos.some(l=>l.exemplo);
   populateFilterUnidades();
   populateFilterUnidadesRelatorio();
@@ -3771,6 +4046,7 @@ document.getElementById("logoutBtn").addEventListener("click",()=>{
   document.getElementById("afUnidade").disabled = false;
 });
 document.getElementById("openIncluirSaldo").addEventListener("click",()=>openIncluirSaldo());
+document.getElementById("openLancarSuprimento").addEventListener("click",()=>openLancarSuprimento());
 document.getElementById("openNovaUnidade").addEventListener("click", openNovaUnidade);
 document.getElementById("openNovoUsuario").addEventListener("click", openNovoUsuario);
 document.getElementById("testarDb").addEventListener("click", testarConexaoDb);
@@ -3847,6 +4123,7 @@ document.getElementById("afMesHoje").addEventListener("click", ()=>{
 
 document.getElementById("appBuild").textContent = APP_BUILD;
 initTheme();
+initLogoPadrao();
 restoreSession();
 if(session){ enterApp(); }
 
