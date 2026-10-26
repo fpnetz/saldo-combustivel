@@ -376,6 +376,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
   position:relative;
 }
 .upload-box.has-file{border-style:solid;border-color:var(--teal);color:var(--teal-ink)}
+.upload-box.has-file .upload-box-text{display:none}
+.upload-box-filename{font-size:12px}
 .upload-box input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .preview-thumb{max-width:100%;max-height:64px;border-radius:6px;margin-bottom:6px}
 .calc-preview{
@@ -911,7 +913,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
             <thead>
               <tr>
                 <th>Data</th><th>Bomba</th><th class="num">Padrão</th><th class="num">Aferições</th>
-                <th class="num">Dif. média</th><th>Status</th><th></th>
+                <th class="num">Dif. média</th><th>Status</th><th>Anexo</th><th></th>
               </tr>
             </thead>
             <tbody id="afBombaHistBody"></tbody>
@@ -2050,7 +2052,7 @@ function renderAfericao(){
   if(histBody){
     const hist = u ? afericoesBomba.filter(a=>a.unidadeId===u.id).sort((a,b)=>a.data<b.data?1:-1) : [];
     if(!hist.length){
-      histBody.innerHTML = `<tr><td colspan="7" class="muted">Nenhuma aferição de bomba registrada para esta unidade ainda.</td></tr>`;
+      histBody.innerHTML = `<tr><td colspan="8" class="muted">Nenhuma aferição de bomba registrada para esta unidade ainda.</td></tr>`;
     } else {
       histBody.innerHTML = hist.map(a=>{
         const b = u && bombasDaUnidade(u).find(x=>x.id===a.bombaId);
@@ -2062,6 +2064,7 @@ function renderAfericao(){
           <td class="num">${a.pulls.length}</td>
           <td class="num">${(a.diferencaMedia>=0?"+":"")}${fmtLFino(a.diferencaMedia)}</td>
           <td><span class="afericao-pill ${a.status}">${STATUS_LABEL[a.status]||a.status}</span></td>
+          <td>${a.anexoAssetId?`<a href="${a.anexoAssetId}" target="_blank" rel="noopener" class="att-chip">1 anexo</a>`:`<span class="att-chip">—</span>`}</td>
           <td>${podeExcluir?`<button class="btn btn-ghost" data-excluir-afb="${a.id}" style="padding:4px 10px">Excluir</button>`:""}</td>
         </tr>`;
       }).join("");
@@ -2641,6 +2644,29 @@ function gerarRelatorio(){
   document.getElementById("rptImprimir").hidden = false;
 }
 
+/* Caixa de anexo reutilizável (dashed box que vira preview ao escolher um arquivo).
+   Mantém o <input type="file"> original no DOM em vez de recriá-lo via innerHTML —
+   recriar o input (como numa versão anterior) quebra em modo estrito, porque reatava
+   o listener usando arguments.callee. onFile(file) é chamado a cada arquivo escolhido. */
+function wireUploadBox(boxId, inputId, onFile){
+  const box = document.getElementById(boxId);
+  const input = document.getElementById(inputId);
+  const preview = box.querySelector(".upload-box-preview");
+  input.addEventListener("change",()=>{
+    const f = input.files[0];
+    if(!f) return;
+    box.classList.add("has-file");
+    onFile(f);
+    if(f.type.startsWith("image/")){
+      const reader = new FileReader();
+      reader.onload = ()=>{ preview.innerHTML = `<img class="preview-thumb" src="${reader.result}"><div class="upload-box-filename">${f.name}</div>`; };
+      reader.readAsDataURL(f);
+    } else {
+      preview.textContent = "Anexado: "+f.name;
+    }
+  });
+}
+
 /* ===================== Modal: Incluir Saldo ===================== */
 let modalState = null;
 function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
@@ -2686,8 +2712,8 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
 
           <div class="section-label">Anexos</div>
           <div class="upload-row">
-            <label class="upload-box" id="printBox">Print do sistema<input type="file" id="mPrint" accept="image/*,.pdf"></label>
-            <label class="upload-box" id="fotoBox">Foto da régua<input type="file" id="mFoto" accept="image/*"></label>
+            <label class="upload-box" id="printBox"><span class="upload-box-text">Print do sistema</span><div class="upload-box-preview"></div><input type="file" id="mPrint" accept="image/*,.pdf"></label>
+            <label class="upload-box" id="fotoBox"><span class="upload-box-text">Foto da régua</span><div class="upload-box-preview"></div><input type="file" id="mFoto" accept="image/*"></label>
           </div>
 
           <div class="field" style="margin-top:14px"><label>Observação / motivação (opcional)</label>
@@ -2901,29 +2927,8 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
   }
   function prevDate(iso){ const d=new Date(iso+"T00:00:00Z"); d.setUTCDate(d.getUTCDate()-1); return dstr(d); }
 
-  function setupUpload(inputId, boxId, key){
-    const input = document.getElementById(inputId);
-    const box = document.getElementById(boxId);
-    const label = box.innerHTML;
-    input.addEventListener("change",()=>{
-      const f = input.files[0];
-      if(!f) return;
-      modalState[key] = f;
-      box.classList.add("has-file");
-      const reader = new FileReader();
-      reader.onload = ()=>{
-        if(f.type.startsWith("image/")){
-          box.innerHTML = `<img class="preview-thumb" src="${reader.result}"><div>${f.name}</div>` + input.outerHTML;
-          document.getElementById(inputId).addEventListener("change", arguments.callee);
-        } else {
-          box.innerHTML = `Anexado: ${f.name}`;
-        }
-      };
-      reader.readAsDataURL(f);
-    });
-  }
-  setupUpload("mPrint","printBox","printFile");
-  setupUpload("mFoto","fotoBox","fotoFile");
+  wireUploadBox("printBox","mPrint", f=>{ modalState.printFile = f; });
+  wireUploadBox("fotoBox","mFoto", f=>{ modalState.fotoFile = f; });
 
   document.getElementById("modalSave").onclick = async ()=>{
     const saveBtn = document.getElementById("modalSave");
@@ -3617,6 +3622,7 @@ function openNovaAfericaoBomba(unidadeId, bombaId, prefillData){
   const b = bombasDaUnidade(u).find(x=>x.id===bombaId); if(!b) return;
   document.getElementById("afbModalBackdrop")?.remove();
   let pullCount = 0;
+  let afbAnexoFile = null;
   const html = `
     <div class="modal-backdrop" id="afbModalBackdrop">
       <div class="modal" style="max-width:560px">
@@ -3632,6 +3638,12 @@ function openNovaAfericaoBomba(unidadeId, bombaId, prefillData){
           <div id="afbPullsList"></div>
           <button type="button" class="btn btn-ghost" id="afbAddPull" style="margin-top:4px">+ Adicionar aferição</button>
           <div id="afbResumo" class="unit-card" style="margin-top:14px"></div>
+
+          <div class="section-label" style="margin-top:12px">Anexo</div>
+          <div class="upload-row">
+            <label class="upload-box" id="afbAnexoBox"><span class="upload-box-text">Foto/print da aferição (opcional)</span><div class="upload-box-preview"></div><input type="file" id="afbAnexo" accept="image/*,.pdf"></label>
+          </div>
+
           <div class="field" style="margin-top:12px"><label>Observação</label><input id="afbObs" placeholder="opcional"></div>
         </div>
         <div class="modal-foot"><button class="btn btn-ghost" id="afbCancel">Cancelar</button><button class="btn btn-primary" id="afbSave">Salvar aferição</button></div>
@@ -3690,6 +3702,8 @@ function openNovaAfericaoBomba(unidadeId, bombaId, prefillData){
   document.getElementById("afbAddPull").addEventListener("click", addPullRow);
   addPullRow();
 
+  wireUploadBox("afbAnexoBox","afbAnexo", f=>{ afbAnexoFile = f; });
+
   document.getElementById("afbSave").onclick = async ()=>{
     const data = document.getElementById("afbData").value;
     if(!data){ showToast("Informe a data da aferição."); return; }
@@ -3708,10 +3722,15 @@ function openNovaAfericaoBomba(unidadeId, bombaId, prefillData){
     if(!pulls.length || faltouValor){ showToast("Preencha o encerrante final de todas as aferições (ou remova as vazias)."); return; }
     const diferencaMedia = pulls.reduce((s,p)=>s+p.diferenca,0)/pulls.length;
     const status = classificarBomba(diferencaMedia);
+    let anexoAssetId = null;
+    if(assetsNs && afbAnexoFile){
+      try{ const r = await assetsNs.upload(afbAnexoFile); anexoAssetId = r.id; }
+      catch(e){ console.error("[saldo] falha ao enviar anexo da aferição de bomba:", e); showToast("Não foi possível enviar o anexo — aferição será salva sem ele."); }
+    }
     const registro = {
       id: "afb-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7),
       unidadeId, bombaId, data, litragemPadrao, encerranteInicial, pulls,
-      diferencaMedia, status,
+      diferencaMedia, status, anexoAssetId,
       obs: document.getElementById("afbObs").value.trim(),
       criadoPor: session.nome, criadoEm: new Date().toISOString(),
     };
