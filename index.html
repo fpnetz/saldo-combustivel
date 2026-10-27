@@ -233,6 +233,8 @@ header.top .title{font-weight:600;color:var(--muted);font-size:14px}
   display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);
 }
 .icon-btn:hover{filter:brightness(.96)}
+.icon-btn.spinning svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 .icon-btn-mini{width:24px;height:24px;border-radius:6px}
 .unit-logo-row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
 .unit-logo-thumb{height:22px;max-width:120px;object-fit:contain;display:block}
@@ -317,6 +319,10 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .unit-cell b{display:block}
 .unit-cell span{color:var(--muted);font-size:12px}
 .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600}
+.afer-urgente{margin-top:5px;font-size:11px;font-weight:700;color:var(--red);white-space:normal;max-width:180px}
+.afer-trend{display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.afer-trend svg{display:block;flex:0 0 auto}
+.afer-trend-label{font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
 .badge.ok{background:var(--ok-bg);color:var(--ok)}
 .badge.warn{background:var(--warn-bg);color:var(--warn)}
 .badge.bad{background:var(--bad-bg);color:var(--bad)}
@@ -706,6 +712,9 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
     <span class="pill" id="roleBadge"></span>
     <div class="userbox"><b id="userName"></b></div>
     <span class="muted" id="appBuild" style="font-size:10px;opacity:.5"></span>
+    <button class="icon-btn" id="refreshDataBtn" title="Atualizar dados (busca de novo o que foi lançado por outras pessoas)" aria-label="Atualizar dados">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+    </button>
     <button class="icon-btn" id="themeToggle" title="Alternar tema" aria-label="Alternar tema">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36A5.4 5.4 0 0 1 12 3Z"/></svg>
     </button>
@@ -1182,7 +1191,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-27-v51";
+const APP_BUILD = "2026-10-27-v52";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1952,6 +1961,45 @@ function populateFilterUnidades(){
 }
 
 /* ===================== Aferição: calendário + % de divergência por dia ===================== */
+// curva suave (Catmull-Rom → Bézier) passando pelos pontos, pra desenhar a linha de tendência
+function buildSmoothPath(xs, ys){
+  if(xs.length<2) return "";
+  let d = `M ${xs[0].toFixed(1)},${ys[0].toFixed(1)}`;
+  for(let i=0;i<xs.length-1;i++){
+    const x0 = i>0 ? xs[i-1] : xs[i], y0 = i>0 ? ys[i-1] : ys[i];
+    const x1 = xs[i], y1 = ys[i];
+    const x2 = xs[i+1], y2 = ys[i+1];
+    const x3 = i+2<xs.length ? xs[i+2] : x2, y3 = i+2<xs.length ? ys[i+2] : y2;
+    const c1x = x1 + (x2-x0)/6, c1y = y1 + (y2-y0)/6;
+    const c2x = x2 - (x3-x1)/6, c2y = y2 - (y3-y1)/6;
+    d += ` C ${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
+  }
+  return d;
+}
+// mini-gráfico de linha suavizada com a tendência da diferença (saldo calculado x físico)
+// do tanque nas últimas leituras — ajuda a ver visualmente se está piorando
+function diffTrendSvg(tanque){
+  const ls = lancamentosDoTanque(tanque.id).filter(l=>l.saldoFisico!==null && l.saldoFisico!==undefined);
+  if(ls.length<2) return "";
+  const recentes = ls.slice(-10);
+  const vals = recentes.map(l=> saldoAbastecimentoAte(tanque, l.data) - l.saldoFisico);
+  const w=100, h=100, padX=4, padY=6;
+  const maxAbs = Math.max(2.5, ...vals.map(v=>Math.abs(v)));
+  const n = vals.length;
+  const xs = vals.map((_,i)=> n>1 ? padX + i*((w-2*padX)/(n-1)) : w/2);
+  const ys = vals.map(v=> h/2 - (v/maxAbs)*(h/2-padY));
+  const path = buildSmoothPath(xs, ys);
+  const ultimo = vals[vals.length-1];
+  const urgente = Math.abs(ultimo) > 2.5;
+  const cor = urgente ? "var(--red)" : (Math.abs(ultimo) > 1 ? "var(--warn)" : "var(--teal)");
+  return `<div class="afer-trend" title="Tendência da diferença (últimas ${n} leituras) — ${(ultimo>=0?"+":"")}${fmtLFino(ultimo)} na mais recente">
+    <svg viewBox="0 0 ${w} ${h}" width="${w}" height="34" preserveAspectRatio="none">
+      <line x1="0" y1="${h/2}" x2="${w}" y2="${h/2}" stroke="var(--line)" stroke-width="1" vector-effect="non-scaling-stroke"/>
+      <path d="${path}" fill="none" stroke="${cor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    </svg>
+    <span class="afer-trend-label" style="color:${cor}">${(ultimo>=0?"+":"")}${fmtLFino(ultimo)}</span>
+  </div>`;
+}
 function afericoesDoMes(unidadeId, mes){
   // uma entrada por (tanque, data) em que o saldo físico (régua) foi registrado naquele mês
   const u = unidades.find(x=>x.id===unidadeId);
@@ -2041,6 +2089,7 @@ function renderAfericao(){
           </div>
           <span class="afericao-pill ${af.status}">${afericaoTxt(af)}</span>
         </div>
+        ${diffTrendSvg(t)}
       </div>`;
     }).join("");
   }
@@ -2190,9 +2239,11 @@ function renderAfericao(){
   const tbody = document.getElementById("afTbody");
   document.getElementById("afCount").textContent = afer.length+" registro(s)";
   document.getElementById("afEmpty").hidden = afer.length>0;
+  const LIMITE_URGENTE_L = 2.5;
   tbody.innerHTML = afer.map(a=>{
     const diffTxt = (a.diff>=0?"+":"")+fmtNum.format(a.diff)+" l";
     const diffClass = a.diff>0?"diff-pos":(a.diff<0?"diff-neg":"");
+    const urgente = Math.abs(a.diff) > LIMITE_URGENTE_L;
     return `<tr>
       <td>${fmtDate(a.data)}</td>
       <td>Tanque ${a.tanque.numero} · ${a.tanque.produto}</td>
@@ -2200,7 +2251,7 @@ function renderAfericao(){
       <td class="num">${fmtL(a.saldoFisico)}</td>
       <td class="num ${diffClass}">${diffTxt}</td>
       <td class="num"><b>${fmtPct.format(a.pct)}%</b></td>
-      <td>${badgeHtml({status:a.status})}</td>
+      <td>${badgeHtml({status:a.status})}${urgente?`<div class="afer-urgente">⚠ Solicitar urgentemente aferição da bomba</div>`:""}</td>
     </tr>`;
   }).join("");
 }
@@ -2392,17 +2443,23 @@ function gerarComprovantePdf(c, u){
     `Protocolo nº ${c.protocolo}`,
     `Unidade: ${u.nome} · Data: ${fmtDate(c.data)} · Enviado em ${pdfNow()}`,
   ], marca));
-  content.push(pdfKpiRow([
-    ["Responsável", c.responsavelNome, PDFC.TEAL],
-    ["Matrícula", c.matricula || "—", PDFC.GRAY],
-    ["Tanques", c.tanques.length, PDFC.TEAL],
-    ["Bombas aferidas", c.bombas.length, PDFC.BLUE],
-  ]));
-  content.push(pdfH2("Saldo físico por tanque"));
+  const kpiItems = [["Responsável", c.responsavelNome, PDFC.TEAL]];
+  if(!c.isPreposto) kpiItems.push(["Matrícula", c.matricula || "—", PDFC.GRAY]);
+  kpiItems.push(["Tanques", c.tanques.length, PDFC.TEAL]);
+  kpiItems.push(["Bombas aferidas", c.bombas.length, PDFC.BLUE]);
+  content.push(pdfKpiRow(kpiItems));
+  content.push(pdfH2("Aferição de tanque (saldo físico)"));
+  const tanqueAlerta = c.tanques.some(t=>t.urgente);
+  if(tanqueAlerta){
+    content.push({ text:"⚠ Diferença acima de 2,5 l em pelo menos um tanque — SOLICITAR URGENTEMENTE AFERIÇÃO DA BOMBA.",
+      fontSize:9.5, bold:true, color:PDFC.RED, margin:[0,0,0,8] });
+  }
   content.push(pdfStyledTable(
-    ["Tanque","Combustível","Saldo físico (l)","Foto da régua"],
-    c.tanques.map(t=>[t.numero, t.produto, fmtNum.format(t.saldoFisico), t.fotoAssetId?"Anexada":"—"]),
-    { numCols:[2] }
+    ["Tanque","Combustível","Saldo físico (l)","Diferença (calc. × físico)","Foto da régua"],
+    c.tanques.map(t=>[t.numero, t.produto, fmtNum.format(t.saldoFisico),
+      typeof t.diferenca==="number" ? (t.diferenca>=0?"+":"")+fmtLFino(t.diferenca)+(t.urgente?" ⚠":"") : "—",
+      t.fotoAssetId?"Anexada":"—"]),
+    { numCols:[2,3] }
   ));
   if(c.bombas.length){
     content.push(pdfH2("Aferição de bomba"));
@@ -4077,6 +4134,34 @@ function restoreSession(){
     if(raw) session = JSON.parse(raw);
   }catch(e){}
 }
+// recarrega unidades/lançamentos/aferições do banco sem precisar dar F5 — os dados ficam
+// em memória desde o login, então o que é enviado pelo link público (ou por outro usuário)
+// só aparece aqui depois de uma nova busca
+async function refreshAllData(){
+  const btn = document.getElementById("refreshDataBtn");
+  if(btn){ btn.disabled = true; btn.classList.add("spinning"); }
+  try{
+    await loadUsuarios();
+    await initData();
+    aplicarLogoPadrao();
+    document.getElementById("exampleFlag").hidden = !lancamentos.some(l=>l.exemplo);
+    populateFilterUnidades();
+    populateFilterUnidadesRelatorio();
+    renderTable();
+    const viewAtual = document.querySelector(".tab.active")?.dataset.view || "dashboard";
+    if(viewAtual==="cadastro") renderCadastro();
+    if(viewAtual==="usuarios") renderUsuarios();
+    if(viewAtual==="panorama") renderPanorama();
+    if(viewAtual==="afericao") renderAfericao();
+    if(viewAtual==="documentacao") renderTabelaPercentual();
+    showToast("Dados atualizados.");
+  }catch(e){
+    console.error("[saldo] refreshAllData falhou:", e);
+    showToast("Não foi possível atualizar agora (" + (e && e.message ? e.message : "erro") + ").");
+  }finally{
+    if(btn){ btn.disabled = false; btn.classList.remove("spinning"); }
+  }
+}
 async function enterApp(){
   document.getElementById("login").style.display="none";
   document.getElementById("themeToggleLogin").hidden = true;
@@ -4328,6 +4413,25 @@ function renderPublicAfericao(){
     const btn = document.getElementById("afPubEnviar");
     btn.disabled = true; btn.textContent = "Enviando...";
     try{
+      // busca o histórico de lançamentos só pra calcular a diferença (saldo calculado x físico)
+      // de cada tanque e sinalizar no comprovante quando passar de 2,5 l — não substitui o
+      // array global `lancamentos` (o link público mantém isso vazio de propósito).
+      let historicoLancamentos = [];
+      try{
+        const hRes = await dbNs.collection("lancamentos").get();
+        historicoLancamentos = hRes && hRes.docs ? hRes.docs.filter(d=>d.exists).map(d=>d.data()).filter(Boolean) : [];
+      }catch(e){ console.error("[saldo] falha ao buscar histórico para calcular diferença (link público):", e); }
+      const saldoCalculadoAte = (tanqueId, dataLimite, saldoInicial)=>{
+        let saldo = saldoInicial;
+        const ls = historicoLancamentos.filter(l=>l.tanqueId===tanqueId).sort((a,b)=>a.data<b.data?-1:1);
+        for(const l of ls){
+          if(l.data > dataLimite) break;
+          saldo += (l.abEntrada||0) - (l.abSaida||0);
+        }
+        return saldo;
+      };
+
+      const LIMITE_URGENTE_L = 2.5;
       const tanquesComprovante = [];
       for(const t of tanques){
         const fisico = Number(document.getElementById(`afPubFisico-${t.id}`).value);
@@ -4349,7 +4453,12 @@ function renderPublicAfericao(){
               printAssetId:null, fotoAssetId, obs:"Registrado via link de aferição.", exemplo:false,
               responsavelNome: nome, responsavelMatricula: isPreposto?null:matricula, responsavelPreposto: isPreposto };
         await saveLancamento(l);
-        tanquesComprovante.push({ numero:t.numero, produto:t.produto, saldoFisico:fisico, fotoAssetId });
+        const saldoCalc = saldoCalculadoAte(t.id, data, t.saldoInicial);
+        const diferenca = saldoCalc - fisico;
+        tanquesComprovante.push({
+          numero:t.numero, produto:t.produto, saldoFisico:fisico, fotoAssetId,
+          diferenca, urgente: Math.abs(diferenca) > LIMITE_URGENTE_L,
+        });
       }
 
       const bombasComprovante = [];
@@ -4437,6 +4546,7 @@ document.getElementById("openIncluirSaldo").addEventListener("click",()=>openInc
 document.getElementById("openNovaUnidade").addEventListener("click", openNovaUnidade);
 document.getElementById("openLinkAfericaoGlobal").addEventListener("click", openLinkAfericaoGlobal);
 document.getElementById("openLinkAfericaoGlobal2").addEventListener("click", openLinkAfericaoGlobal);
+document.getElementById("refreshDataBtn").addEventListener("click", refreshAllData);
 document.getElementById("openNovoUsuario").addEventListener("click", openNovoUsuario);
 document.getElementById("testarDb").addEventListener("click", testarConexaoDb);
 document.getElementById("openNovoAgendamento").addEventListener("click", openNovoAgendamento);
