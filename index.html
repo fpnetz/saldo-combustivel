@@ -644,6 +644,15 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .af-pub-wrap{max-width:640px;margin:0 auto;padding:28px 16px 60px}
 .af-pub-card{background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:24px 22px;margin-bottom:16px;font-family:"IBM Plex Sans",system-ui,sans-serif}
 .af-pub-card .field{margin-bottom:12px}
+.af-combo-list{
+  position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--paper);border:1px solid var(--line);
+  border-radius:8px;box-shadow:var(--shadow);max-height:260px;overflow:auto;z-index:5;
+}
+.af-combo-opt{display:block;width:100%;text-align:left;border:none;background:none;padding:10px 12px;font-size:13.5px;color:var(--ink);cursor:pointer}
+.af-combo-opt:hover{background:var(--bg)}
+.af-combo-empty{padding:10px 12px;font-size:12.5px;color:var(--muted)}
+.upload-box.required{border-color:color-mix(in srgb, var(--bad) 55%, var(--line))}
+.upload-box.required.has-file{border-color:var(--teal)}
 </style>
 </head>
 <body>
@@ -851,6 +860,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
     <section id="view-cadastro" hidden>
       <div class="fab-row">
         <button class="btn btn-add" id="openNovaUnidade">+ Nova unidade</button>
+        <button class="btn btn-ghost" id="openLinkAfericaoGlobal">Link de aferição</button>
         <button class="btn btn-ghost" id="testarDb">Testar conexão com o banco</button>
       </div>
       <div id="unidadesList"></div>
@@ -1140,6 +1150,7 @@ const SEED_UNIDADES = [
 ];
 
 function dstr(d){ return d.toISOString().slice(0,10); }
+function escapeHtml(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
 function prevDate(iso){ const d=new Date(iso+"T00:00:00Z"); d.setUTCDate(d.getUTCDate()-1); return dstr(d); }
 function daysAgo(n){ const d=new Date(); d.setUTCHours(0,0,0,0); d.setUTCDate(d.getUTCDate()-n); return dstr(d); }
 
@@ -1153,6 +1164,7 @@ const BR_MAP = [{"i":"AC","n":"Acre","p":"m 30.732574,238.03114 -2.08,-0.04 0.54
 
 /* ===================== State ===================== */
 let unidades = [];     // [{id,nome,estado,tanques:[...]}]
+let afPubState = null; // { unidadeId, bombaQtd:{}, bombaDiffs:{} } — estado do link público de aferição
 let lancamentos = [];  // flat list
 let agendamentos = []; // [{id,unidadeId,tanqueId,data,obs,criadoPor,criadoEm}]
 // aferição de bomba (teste de precisão do bico, separado da aferição de saldo físico/régua):
@@ -1169,7 +1181,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-26-v39";
+const APP_BUILD = "2026-10-27-v50";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -2368,6 +2380,48 @@ function marcaParaSelecao(lista){
   }
   return marcaPadrao();
 }
+// comprovante em PDF gerado logo após o envio do link público de aferição — reaproveita
+// os mesmos helpers de PDF dos relatórios (pdfHeaderContent/pdfStyledTable/pdfDoc), e a
+// marca (Atlântico ou a logo própria da unidade, ex: BOA VISTA) vem do mesmo mecanismo
+// de "marca por unidade" já usado nos relatórios (marcaParaSelecao).
+function gerarComprovantePdf(c, u){
+  const marca = marcaParaSelecao([u]);
+  const content = [];
+  content.push(...pdfHeaderContent("Comprovante de Aferição", [
+    `Protocolo nº ${c.protocolo}`,
+    `Unidade: ${u.nome} · Data: ${fmtDate(c.data)} · Enviado em ${pdfNow()}`,
+  ], marca));
+  content.push(pdfKpiRow([
+    ["Responsável", c.responsavelNome, PDFC.TEAL],
+    ["Matrícula", c.matricula || "—", PDFC.GRAY],
+    ["Tanques", c.tanques.length, PDFC.TEAL],
+    ["Bombas aferidas", c.bombas.length, PDFC.BLUE],
+  ]));
+  content.push(pdfH2("Saldo físico por tanque"));
+  content.push(pdfStyledTable(
+    ["Tanque","Combustível","Saldo físico (l)","Foto da régua"],
+    c.tanques.map(t=>[t.numero, t.produto, fmtNum.format(t.saldoFisico), t.fotoAssetId?"Anexada":"—"]),
+    { numCols:[2] }
+  ));
+  if(c.bombas.length){
+    content.push(pdfH2("Aferição de bomba"));
+    content.push(pdfStyledTable(
+      ["Bomba","Tanque(s) vinculado(s)","Qtd. aferições","Qtd. por aferição (l)","Diferença total (l)","Última aferição anterior"],
+      c.bombas.map(b=>[b.numero, b.tanquesTxt, b.qtd, fmtNum.format(b.litragemPadrao), (b.diferencaTotal>=0?"+":"")+fmtLFino(b.diferencaTotal), b.ultimaTxt||"—"]),
+      { numCols:[2,3,4] }
+    ));
+  }
+  if(c.observacao){
+    content.push(pdfH2("Observação"));
+    content.push({ text:c.observacao, fontSize:9.5, color:PDFC.INK, margin:[0,0,0,10] });
+  }
+  if(c.anexosLivres.length){
+    content.push(pdfH2("Anexos"));
+    content.push({ text:c.anexosLivres.map(a=>a.nome).join(", "), fontSize:9.5, color:PDFC.GRAY });
+  }
+  pdfDownload(pdfDoc(content), `comprovante-afericao-${c.protocolo}.pdf`);
+}
+
 function criarModelo(titulo, subtitulo, marca){
   return { titulo, subtitulo, marca: marca || marcaParaSelecao(unidadesSelecionadasOuTodas()), kpis:[], blocos:[] };
 }
@@ -3019,8 +3073,8 @@ function blocosTanqueDetalhe(g, paraImpressao){
     const l = g.lancDoDia.find(x=>x.tanqueId===t.id);
     const saldoAbT = saldoAbastecimentoAte(t, g.data);
     const fisicoT = fisicoConhecidoAte(t, g.data);
-    const printUrl = l && l.printAssetId;
-    const fotoUrl = l && l.fotoAssetId;
+    const printUrl = l && l.printAssetId && (assetsCache[l.printAssetId] || l.printAssetId);
+    const fotoUrl = l && l.fotoAssetId && (assetsCache[l.fotoAssetId] || l.fotoAssetId);
     return `<div class="tank-detail-block">
         <div class="section-label">Tanque ${t.numero} · ${t.produto}${!l?' <span class="hint" style="text-transform:none;font-weight:400;letter-spacing:0">— sem movimento neste dia, saldo mantido</span>':""}</div>
         <div class="calc-preview">
@@ -3139,7 +3193,6 @@ function renderCadastro(){
           </div>
         </div>
         <div class="fab-row" style="margin:0;gap:8px">
-          <button class="btn btn-ghost" data-link-afericao="${u.id}">Link de aferição</button>
           <button class="btn btn-ghost" data-toggle-unidade="${u.id}">${uAtiva?"Desativar":"Reativar"}</button>
           <button class="btn btn-ghost" data-del-unidade="${u.id}">Excluir unidade</button>
         </div>
@@ -3211,9 +3264,6 @@ function renderCadastro(){
       const [unidadeId, tanqueId] = el.dataset.toggleTanque.split("|");
       await toggleAtivoTanque(unidadeId, tanqueId);
     });
-  });
-  wrap.querySelectorAll("[data-link-afericao]").forEach(el=>{
-    el.addEventListener("click", ()=>openLinkAfericao(el.dataset.linkAfericao));
   });
   wrap.querySelectorAll("[data-toggle-unidade]").forEach(el=>{
     el.addEventListener("click", ()=>toggleAtivoUnidade(el.dataset.toggleUnidade));
@@ -3531,30 +3581,25 @@ function openNovoAgendamento(){
 // token usado no link público de aferição (?af=<unidadeId>.<token>) — não é segredo
 // criptográfico forte, só precisa ser difícil de adivinhar; qualquer um com o link
 // consegue lançar aferição daquela unidade específica, sem senha.
-function gerarTokenAfericao(){
-  if(window.crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g,"").slice(0,12);
-  return Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,6);
+// Link único (não é mais por unidade): quem abre escolhe a unidade dentro do próprio
+// formulário, pelo filtro de busca. Não precisa de token — não dá acesso a mais nada
+// do sistema além do formulário de aferição, então não há o que proteger com um segredo.
+function linkAfericaoGlobal(){
+  return location.origin + location.pathname + "?af=1";
 }
-function linkAfericaoUnidade(u){
-  return location.origin + location.pathname + "?af=" + encodeURIComponent(u.id) + "." + encodeURIComponent(u.tokenAfericao);
-}
-async function openLinkAfericao(unidadeId){
+function openLinkAfericaoGlobal(){
   if(!requireAdmin()) return;
-  const u = unidades.find(x=>x.id===unidadeId); if(!u) return;
-  if(!u.tokenAfericao){ u.tokenAfericao = gerarTokenAfericao(); await saveUnidade(u); }
   document.getElementById("linkAfModalBackdrop")?.remove();
-  const link = linkAfericaoUnidade(u);
+  const link = linkAfericaoGlobal();
   const html = `
     <div class="modal-backdrop" id="linkAfModalBackdrop">
       <div class="modal" style="max-width:480px">
-        <div class="modal-head"><h2>Link de aferição — ${u.nome}</h2><button class="close-x" id="linkAfClose">&times;</button></div>
+        <div class="modal-head"><h2>Link de aferição</h2><button class="close-x" id="linkAfClose">&times;</button></div>
         <div class="modal-body">
-          <p class="hint" style="margin-top:0">Compartilhe este link com a unidade (ex: no grupo de avisos). Quem abrir consegue registrar o saldo físico dos tanques e a aferição de bomba direto, sem acessar o resto do sistema e sem precisar de usuário/senha.</p>
+          <p class="hint" style="margin-top:0">Um único link para todas as unidades — compartilhe no grupo de avisos. Quem abrir escolhe a unidade dentro do formulário e consegue registrar o saldo físico dos tanques e a aferição de bomba, sem acessar o resto do sistema e sem precisar de usuário/senha.</p>
           <div class="field"><label>Link</label><input id="linkAfInput" readonly value="${link}"></div>
-          <p class="hint" id="linkAfHint"></p>
         </div>
         <div class="modal-foot">
-          <button class="btn btn-ghost" id="linkAfRegerar">Gerar novo link</button>
           <button class="btn btn-primary" id="linkAfCopiar">Copiar link</button>
         </div>
       </div>
@@ -3572,13 +3617,6 @@ async function openLinkAfericao(unidadeId){
       input.select();
       showToast("Não foi possível copiar automaticamente — link selecionado, use Ctrl+C.");
     }
-  };
-  document.getElementById("linkAfRegerar").onclick = async ()=>{
-    if(!(await askConfirm("Gerar um novo link? O link antigo para de funcionar imediatamente — quem ainda não usou vai precisar do novo."))) return;
-    u.tokenAfericao = gerarTokenAfericao();
-    await saveUnidade(u);
-    document.getElementById("linkAfInput").value = linkAfericaoUnidade(u);
-    showToast("Novo link gerado — o antigo não funciona mais.");
   };
 }
 
@@ -3607,7 +3645,7 @@ function openNovaUnidade(){
     const estado = document.getElementById("uEstado").value.trim().toUpperCase();
     if(!nome || !estado){ showToast("Informe cidade e estado."); return; }
     const id = nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-");
-    await saveUnidade({ id, nome, estado, tanques:[], ativo:true, tokenAfericao: gerarTokenAfericao() });
+    await saveUnidade({ id, nome, estado, tanques:[], ativo:true });
     bd.remove(); renderCadastro(); populateFilterUnidades(); populateFilterUnidadesRelatorio();
     showToast("Unidade criada.");
   };
@@ -4061,12 +4099,12 @@ async function enterApp(){
 }
 
 /* ===================== Link público de aferição (sem login) =====================
-   Aberto via ?af=<unidadeId>.<token>. Mostra só um formulário simples de saldo
-   físico + aferição de bomba daquela unidade, sem dar acesso ao resto do sistema.
-   Reaproveita saveLancamento/saveAfericaoBomba (não dependem de sessão) e, pro
-   sub-formulário de aferição de bomba, reaproveita o próprio openNovaAfericaoBomba
-   simulando uma sessão de "controlador" restrita a essa unidade, só nesta aba. */
-async function initPublicAfericao(unidadeId, token){
+   Aberto via ?af=1 — um único link para todas as unidades (não é mais por unidade/token).
+   Quem abre escolhe a unidade dentro do próprio formulário (filtro de busca), preenche o
+   saldo físico de cada tanque (com foto da régua obrigatória), opcionalmente a aferição
+   de bomba (vinculada ao(s) tanque(s) que ela abastece) e, ao enviar, recebe um comprovante
+   em PDF. Reaproveita saveLancamento/saveAfericaoBomba (não dependem de sessão). */
+async function initPublicAfericao(){
   document.getElementById("login").style.display = "none";
   document.getElementById("themeToggleLogin").hidden = true;
   document.getElementById("app").style.display = "none";
@@ -4078,93 +4116,297 @@ async function initPublicAfericao(unidadeId, token){
     body.innerHTML = `<p>Não foi possível conectar ao banco de dados agora. Recarregue a página e tente de novo.</p>`;
     return;
   }
-  let doc = null;
-  try{ doc = await ns.doc("unidades/"+unidadeId).get(); }catch(e){ doc = null; }
-  const u = doc && doc.exists ? doc.data() : null;
-  if(!u || !u.tokenAfericao || u.tokenAfericao!==token){
-    body.innerHTML = `<p><b>Link inválido ou expirado.</b> Peça um novo link de aferição ao administrador do sistema.</p>`;
-    return;
-  }
   dbNs = ns; dbAvailable = true;
   try{ assetsNs = await claude.use("assets"); }catch(e){ assetsNs = null; }
-  unidades = [u];
-  lancamentos = []; afericoesBomba = []; suprimentos = [];
-  session = { user:"link-publico", role:"controlador", nome:"Link público — "+u.nome, unidadeId: u.id };
-  renderPublicAfericao(u);
+  try{
+    const uRes = await dbNs.collection("unidades").get();
+    unidades = uRes && uRes.docs ? uRes.docs.filter(d=>d.exists).map(d=>d.data()).filter(Boolean) : [];
+  }catch(e){
+    console.error("[saldo] falha ao carregar unidades (link público):", e);
+    body.innerHTML = `<p>Não foi possível carregar as unidades agora. Recarregue a página e tente de novo.</p>`;
+    return;
+  }
+  try{
+    const abRes = await dbNs.collection("afericoesBomba").get();
+    afericoesBomba = abRes && abRes.docs ? abRes.docs.filter(d=>d.exists).map(d=>d.data()).filter(Boolean) : [];
+  }catch(e){ afericoesBomba = []; }
+  lancamentos = []; suprimentos = [];
+  session = { user:"link-publico", role:"publico", nome:"Link público de aferição", unidadeId:null };
+  afPubState = { unidadeId:null, bombaQtd:{}, bombaDiffs:{} };
+  renderPublicAfericao();
 }
-function renderPublicAfericao(u){
-  const body = document.getElementById("afPubBody");
-  const tanques = u.tanques.filter(tanqueAtivo);
-  const bombasAtivas = bombasDaUnidade(u).filter(bombaAtiva);
-  body.innerHTML = `
-    <h1 style="font-size:19px;margin:0 0 2px">${u.nome}</h1>
-    <p class="hint" style="margin:0 0 18px">Link de aferição desta unidade — não dá acesso ao restante do sistema. Preencha o saldo físico de cada tanque e, se precisar, registre a aferição de bomba.</p>
-    ${tanques.length ? `
-    <div class="section-label" style="margin-top:0">Saldo físico</div>
-    <div class="field"><label>Data da leitura</label><input type="date" id="afPubData" value="${dstr(new Date())}"></div>
-    ${tanques.map(t=>`
-      <div class="field">
-        <label>Tanque ${t.numero} (${t.produto}) — saldo físico (l)</label>
-        <input type="number" min="0" id="afPubFisico-${t.id}" placeholder="deixe em branco se não for aferir este tanque agora">
-      </div>
-      <div class="upload-row" style="margin-bottom:16px">
-        <label class="upload-box" id="afPubFotoBox-${t.id}"><span class="upload-box-text">Foto da régua — ${t.numero} (opcional)</span><div class="upload-box-preview"></div><input type="file" id="afPubFoto-${t.id}" accept="image/*"></label>
-      </div>`).join("")}
-    <button class="btn btn-primary" id="afPubSalvarFisico" type="button">Registrar saldo físico</button>
-    ` : ""}
-    ${bombasAtivas.length ? `
-    <div class="section-label">Aferição de bomba</div>
-    <p class="hint" style="margin-top:-4px">Teste de precisão do bico (encerrante antes/depois).</p>
-    <div class="tank-row">
-      ${bombasAtivas.map(b=>`<button type="button" class="btn btn-ghost" data-af-pub-bomba="${b.id}">Registrar aferição — Bomba ${b.numero}</button>`).join("")}
-    </div>
-    ` : ""}
-    ${(!tanques.length && !bombasAtivas.length) ? `<p>Esta unidade ainda não tem tanque ou bomba ativa cadastrada. Fale com o administrador do sistema.</p>` : ""}
-  `;
-  const anexosFisico = {};
-  tanques.forEach(t=>{
-    wireUploadBox(`afPubFotoBox-${t.id}`, `afPubFoto-${t.id}`, f=>{ anexosFisico[t.id] = f; });
+function afUnidadesAtivas(){
+  return unidades.filter(unidadeAtiva).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+}
+function afComboOptionsHtml(filtroTexto){
+  const filtro = (filtroTexto||"").trim().toLowerCase();
+  const opcoes = afUnidadesAtivas().filter(o=>o.nome.toLowerCase().includes(filtro));
+  if(!opcoes.length) return `<div class="af-combo-empty">Nenhuma unidade encontrada</div>`;
+  return opcoes.map(o=>`<button type="button" class="af-combo-opt" data-pick-unidade="${o.id}">${escapeHtml(o.nome)}</button>`).join("");
+}
+function wireAfPubCombo(){
+  const inp = document.getElementById("afPubUnidadeInput");
+  const list = document.getElementById("afPubUnidadeList");
+  if(!inp || !list) return;
+  const wireOptions = ()=>{
+    list.querySelectorAll("[data-pick-unidade]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        afPubState.unidadeId = btn.dataset.pickUnidade;
+        list.hidden = true;
+        renderPublicAfericao();
+      });
+    });
+  };
+  const openList = (texto)=>{ list.innerHTML = afComboOptionsHtml(texto); list.hidden = false; wireOptions(); };
+  inp.addEventListener("focus", ()=>openList(""));
+  inp.addEventListener("input", ()=>openList(inp.value));
+  document.addEventListener("click", (e)=>{
+    if(!inp.contains(e.target) && !list.contains(e.target)) list.hidden = true;
   });
-  const btnFisico = document.getElementById("afPubSalvarFisico");
-  if(btnFisico){
-    btnFisico.addEventListener("click", async ()=>{
-      const data = document.getElementById("afPubData").value;
-      if(!data){ showToast("Informe a data da leitura."); return; }
-      const alvos = tanques.filter(t=>document.getElementById(`afPubFisico-${t.id}`).value!=="");
-      if(!alvos.length){ showToast("Informe o saldo físico de pelo menos um tanque."); return; }
-      btnFisico.disabled = true;
-      for(const t of alvos){
+}
+// recalcula só a lista de campos de diferença de uma bomba (não redesenha o formulário
+// inteiro, pra não perder o que já foi digitado nos outros campos)
+function renderBombaDiffs(bombaId){
+  const st = afPubState;
+  const qtd = Math.max(0, Math.min(50, Number(st.bombaQtd[bombaId]||0)));
+  if(!st.bombaDiffs[bombaId]) st.bombaDiffs[bombaId] = [];
+  const arr = st.bombaDiffs[bombaId];
+  while(arr.length < qtd) arr.push("");
+  arr.length = qtd;
+  const wrap = document.getElementById(`afbPubDiffs-${bombaId}`);
+  if(!wrap) return;
+  if(!qtd){ wrap.innerHTML = ""; return; }
+  wrap.innerHTML = `<label style="display:block;font-size:12px;color:var(--muted);margin:10px 0 5px">Diferença por aferição (litros)</label>` +
+    arr.map((v,i)=>`
+      <div class="field" style="margin-bottom:8px">
+        <label style="font-size:11.5px">Aferição ${i+1}ª</label>
+        <input type="number" step="0.01" class="afb-pub-diff" data-bomba-diff="${bombaId}|${i}" value="${escapeHtml(v)}" placeholder="ex: +0,15">
+      </div>`).join("");
+  wrap.querySelectorAll("[data-bomba-diff]").forEach(diffInp=>{
+    diffInp.addEventListener("input", ()=>{
+      const [bid, idx] = diffInp.dataset.bombaDiff.split("|");
+      afPubState.bombaDiffs[bid][Number(idx)] = diffInp.value;
+    });
+  });
+}
+function renderPublicAfericao(){
+  const body = document.getElementById("afPubBody");
+  const st = afPubState;
+  const u = st.unidadeId ? unidades.find(x=>x.id===st.unidadeId) : null;
+
+  let html = `
+    <div class="field" style="position:relative">
+      <label for="afPubUnidadeInput">Unidade</label>
+      <input id="afPubUnidadeInput" type="text" autocomplete="off" placeholder="Selecione a unidade" value="${u?escapeHtml(u.nome):""}">
+      <div class="af-combo-list" id="afPubUnidadeList" hidden></div>
+    </div>`;
+
+  if(!u){
+    html += `<p class="hint">Clique no campo acima para ver todas as unidades cadastradas e selecionar uma.</p>`;
+    body.innerHTML = html;
+    wireAfPubCombo();
+    return;
+  }
+  html += `<p class="hint">Unidade selecionada: <b>${escapeHtml(u.nome)}</b> — os tanques e bombas abaixo são desta unidade.</p>`;
+
+  html += `
+    <div class="section-label" style="margin-top:22px">Responsável pela aferição</div>
+    <div class="field"><label>Nome completo</label><input id="afPubNome" placeholder="ex: João da Silva Santos"></div>
+    <label class="checkbox-row"><input type="checkbox" id="afPubPreposto"> Sou preposto / terceirizado</label>
+    <div class="field" id="afPubMatriculaWrap"><label>Matrícula</label><input id="afPubMatricula" placeholder="ex: 00412"></div>
+    <p class="hint" id="afPubMatriculaHint" hidden style="margin-top:-6px">Matrícula não é obrigatória para preposto/terceirizado.</p>
+    <div class="field"><label>Data da aferição</label><input id="afPubData" type="date" value="${dstr(new Date())}"></div>
+  `;
+
+  const tanques = u.tanques.filter(tanqueAtivo);
+  if(tanques.length){
+    html += `<div class="section-label">Saldo físico por tanque</div>
+      <p class="hint" style="margin-top:-6px">A foto da régua é obrigatória para cada tanque.</p>`;
+    tanques.forEach(t=>{
+      html += `
+      <div class="saldo-atual-box">
+        <div class="saldo-atual-title">Tanque ${escapeHtml(t.numero)} · ${escapeHtml(t.produto)}</div>
+        <div class="field"><label>Saldo físico (régua) — litros</label><input type="number" min="0" id="afPubFisico-${t.id}"></div>
+        <div class="upload-row">
+          <label class="upload-box required" id="afPubFotoBox-${t.id}"><span class="upload-box-text">Foto da régua (obrigatória)</span><div class="upload-box-preview"></div><input type="file" id="afPubFoto-${t.id}" accept="image/*"></label>
+        </div>
+      </div>`;
+    });
+  } else {
+    html += `<p class="hint">Esta unidade ainda não tem tanque ativo cadastrado.</p>`;
+  }
+
+  html += `
+    <div class="section-label">Observação e anexos</div>
+    <div class="field"><label>Observação <span class="muted">(opcional)</span></label><textarea id="afPubObs" rows="3" placeholder="Qualquer informação relevante sobre a aferição..."></textarea></div>
+    <div class="upload-row">
+      <label class="upload-box" id="afPubAnexoBox"><span class="upload-box-text">Anexo livre (opcional — foto, vídeo até 15 MB ou documento)</span><div class="upload-box-preview"></div><input type="file" id="afPubAnexo"></label>
+    </div>`;
+
+  const bombas = bombasDaUnidade(u).filter(bombaAtiva);
+  if(bombas.length){
+    html += `<div class="section-label">Aferição de bomba <span class="muted" style="text-transform:none;font-weight:400;letter-spacing:0">(somente na semana de aferição)</span></div>`;
+    bombas.forEach(b=>{
+      const nomesTanques = tanquesDaBomba(u,b).map(t=>t.numero).join(", ") || "nenhum tanque vinculado";
+      const historico = afericoesDaBomba(b.id);
+      const ultima = historico.length ? historico[historico.length-1] : null;
+      const ultimaTxt = ultima ? `${fmtDate(ultima.data)} — ${(ultima.diferencaMedia>=0?"+":"")}${fmtLFino(ultima.diferencaMedia)}` : "nenhuma registrada ainda";
+      html += `
+      <div class="saldo-atual-box" data-bomba="${b.id}">
+        <div class="saldo-atual-title">Bomba ${escapeHtml(b.numero)} — vinculada ao(s) tanque(s) ${escapeHtml(nomesTanques)}</div>
+        <span class="badge pend" style="margin-bottom:10px">Última aferição: ${ultimaTxt}</span>
+        <div class="field"><label>Quantidade de aferições feitas</label><input type="number" min="0" max="50" class="afb-pub-qtd" data-bomba-qtd="${b.id}" value="${st.bombaQtd[b.id]||""}" placeholder="0 = não aferir agora"></div>
+        <div class="field"><label>Quantidade por aferição (l)</label><input type="text" value="20" disabled></div>
+        <div id="afbPubDiffs-${b.id}"></div>
+      </div>`;
+    });
+  }
+
+  html += `
+    <button class="btn btn-primary" id="afPubEnviar" type="button" style="width:100%;margin-top:18px">Enviar aferição</button>
+    <p class="hint" style="text-align:center">Após o envio, um comprovante em PDF é gerado automaticamente.</p>
+    <button class="btn btn-ghost" id="afPubTrocarUnidade" type="button" style="width:100%;margin-top:8px">Trocar unidade</button>
+  `;
+
+  body.innerHTML = html;
+  wireAfPubCombo();
+
+  const prepostoCb = document.getElementById("afPubPreposto");
+  const matriculaWrap = document.getElementById("afPubMatriculaWrap");
+  const matriculaHint = document.getElementById("afPubMatriculaHint");
+  prepostoCb.addEventListener("change", ()=>{
+    matriculaWrap.hidden = prepostoCb.checked;
+    matriculaHint.hidden = !prepostoCb.checked;
+  });
+
+  const fotosPorTanque = {};
+  tanques.forEach(t=>{
+    wireUploadBox(`afPubFotoBox-${t.id}`, `afPubFoto-${t.id}`, f=>{ fotosPorTanque[t.id] = f; });
+  });
+  let anexoLivreFile = null;
+  wireUploadBox("afPubAnexoBox", "afPubAnexo", f=>{ anexoLivreFile = f; });
+
+  bombas.forEach(b=>{
+    renderBombaDiffs(b.id);
+    document.querySelector(`[data-bomba-qtd="${b.id}"]`).addEventListener("input", (e)=>{
+      afPubState.bombaQtd[b.id] = e.target.value;
+      renderBombaDiffs(b.id);
+    });
+  });
+
+  document.getElementById("afPubTrocarUnidade").addEventListener("click", ()=>{
+    afPubState = { unidadeId:null, bombaQtd:{}, bombaDiffs:{} };
+    renderPublicAfericao();
+  });
+
+  document.getElementById("afPubEnviar").addEventListener("click", async ()=>{
+    const nome = document.getElementById("afPubNome").value.trim();
+    if(!nome){ showToast("Informe o nome completo do responsável."); return; }
+    const isPreposto = prepostoCb.checked;
+    const matricula = document.getElementById("afPubMatricula").value.trim();
+    if(!isPreposto && !matricula){ showToast("Informe a matrícula (ou marque que é preposto/terceirizado)."); return; }
+    const data = document.getElementById("afPubData").value;
+    if(!data){ showToast("Informe a data da aferição."); return; }
+    for(const t of tanques){
+      const fisicoVal = document.getElementById(`afPubFisico-${t.id}`).value;
+      if(fisicoVal===""){ showToast(`Informe o saldo físico do tanque ${t.numero}.`); return; }
+      if(!fotosPorTanque[t.id]){ showToast(`A foto da régua do tanque ${t.numero} é obrigatória.`); return; }
+    }
+    const bombasParaSalvar = [];
+    for(const b of bombas){
+      const qtd = Math.max(0, Number(st.bombaQtd[b.id]||0));
+      if(!qtd) continue;
+      const diffs = (st.bombaDiffs[b.id]||[]).map(v=>v===""?null:Number(v));
+      if(diffs.length!==qtd || diffs.some(v=>v===null || Number.isNaN(v))){
+        showToast(`Preencha a diferença de todas as ${qtd} aferição(ões) da bomba ${b.numero}.`);
+        return;
+      }
+      bombasParaSalvar.push({ b, diffs });
+    }
+
+    const btn = document.getElementById("afPubEnviar");
+    btn.disabled = true; btn.textContent = "Enviando...";
+    try{
+      const tanquesComprovante = [];
+      for(const t of tanques){
         const fisico = Number(document.getElementById(`afPubFisico-${t.id}`).value);
         let fotoAssetId = null;
-        if(assetsNs && anexosFisico[t.id]){
-          try{ const r = await assetsNs.upload(anexosFisico[t.id]); fotoAssetId = r.id; }
+        if(assetsNs && fotosPorTanque[t.id]){
+          try{ const r = await assetsNs.upload(fotosPorTanque[t.id]); fotoAssetId = r.id; }
           catch(e){ console.error("[saldo] falha ao enviar foto da régua (link público):", e); }
         }
-        // mescla com um lançamento já existente nesse tanque/data (se a Controladoria já
-        // tiver lançado Abastecimento pra esse dia) — o link público só atualiza o saldo
-        // físico e a foto, nunca apaga Entrada/Saída de Abastecimento já lançada.
         let existente = null;
         try{
           const edoc = await dbNs.doc("lancamentos/"+(t.id+"__"+data)).get();
           if(edoc && edoc.exists) existente = edoc.data();
         }catch(e){ /* segue sem mesclar */ }
         const l = existente
-          ? { ...existente, saldoFisico: fisico, fotoAssetId: fotoAssetId || existente.fotoAssetId || null }
+          ? { ...existente, saldoFisico: fisico, fotoAssetId: fotoAssetId || existente.fotoAssetId || null,
+              responsavelNome: nome, responsavelMatricula: isPreposto?null:matricula, responsavelPreposto: isPreposto }
           : { id: t.id+"__"+data, unidadeId:u.id, tanqueId:t.id, produto:t.produto, data,
               abEntrada:0, abSaida:0, saldoFisico:fisico,
-              printAssetId:null, fotoAssetId, obs:"Registrado via link de aferição.", exemplo:false };
+              printAssetId:null, fotoAssetId, obs:"Registrado via link de aferição.", exemplo:false,
+              responsavelNome: nome, responsavelMatricula: isPreposto?null:matricula, responsavelPreposto: isPreposto };
         await saveLancamento(l);
+        tanquesComprovante.push({ numero:t.numero, produto:t.produto, saldoFisico:fisico, fotoAssetId });
       }
-      btnFisico.disabled = false;
-      showToast(`Saldo físico registrado para ${alvos.length} tanque(s). Obrigado!`);
-      tanques.forEach(t=>{ const inp = document.getElementById(`afPubFisico-${t.id}`); if(inp) inp.value=""; });
-    });
-  }
-  body.querySelectorAll("[data-af-pub-bomba]").forEach(btn=>{
-    btn.addEventListener("click", ()=>openNovaAfericaoBomba(u.id, btn.dataset.afPubBomba));
+
+      const bombasComprovante = [];
+      for(const { b, diffs } of bombasParaSalvar){
+        const diferencaMedia = diffs.reduce((s,d)=>s+d,0)/diffs.length;
+        const diferencaTotal = diffs.reduce((s,d)=>s+d,0);
+        const status = classificarBomba(diferencaMedia);
+        const historico = afericoesDaBomba(b.id);
+        const ultima = historico.length ? historico[historico.length-1] : null;
+        const registro = {
+          id: "afb-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7),
+          unidadeId:u.id, bombaId:b.id, data,
+          modoSimplificado:true, litragemPadrao:20, qtdAfericoes:diffs.length, diferencas:diffs,
+          pulls: diffs.map(d=>({ diferenca:d })), // compatível com o histórico já existente (usa pulls.length)
+          diferencaMedia, status, anexoAssetId:null,
+          obs:"Registrado via link de aferição.",
+          responsavelNome: nome, responsavelMatricula: isPreposto?null:matricula,
+          criadoPor: nome, criadoEm: new Date().toISOString(),
+        };
+        await saveAfericaoBomba(registro);
+        bombasComprovante.push({
+          numero:b.numero,
+          tanquesTxt: tanquesDaBomba(u,b).map(t=>t.numero).join(", ")||"—",
+          qtd: diffs.length, litragemPadrao:20, diferencaTotal,
+          ultimaTxt: ultima ? `${fmtDate(ultima.data)} — ${(ultima.diferencaMedia>=0?"+":"")}${fmtLFino(ultima.diferencaMedia)}` : null,
+        });
+      }
+
+      let anexoLivreAssetId = null;
+      if(assetsNs && anexoLivreFile){
+        try{ const r = await assetsNs.upload(anexoLivreFile); anexoLivreAssetId = r.id; }
+        catch(e){ console.error("[saldo] falha ao enviar anexo livre (link público):", e); }
+      }
+
+      const protocolo = "AF-"+new Date().toISOString().replace(/[-:T.Z]/g,"").slice(0,14);
+      const comprovante = {
+        id: "cmp-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7),
+        protocolo, unidadeId:u.id, data,
+        responsavelNome: nome, matricula: isPreposto?null:matricula, isPreposto,
+        observacao: document.getElementById("afPubObs").value.trim(),
+        anexosLivres: anexoLivreAssetId ? [{ nome: anexoLivreFile.name, assetId: anexoLivreAssetId }] : [],
+        tanques: tanquesComprovante, bombas: bombasComprovante,
+        criadoEm: new Date().toISOString(),
+      };
+      if(dbNs){
+        try{ await dbNs.doc("comprovantesAfericao/"+comprovante.id).set(comprovante); }
+        catch(e){ console.error("[saldo] falha ao salvar comprovante:", e); }
+      }
+
+      gerarComprovantePdf(comprovante, u);
+      showToast("Aferição registrada com sucesso — comprovante gerado.");
+      afPubState = { unidadeId:null, bombaQtd:{}, bombaDiffs:{} };
+      renderPublicAfericao();
+    } finally {
+      btn.disabled = false; btn.textContent = "Enviar aferição";
+    }
   });
 }
-
 /* ===================== Wire up ===================== */
 document.getElementById("loginForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
@@ -4192,6 +4434,7 @@ document.getElementById("logoutBtn").addEventListener("click",()=>{
 });
 document.getElementById("openIncluirSaldo").addEventListener("click",()=>openIncluirSaldo());
 document.getElementById("openNovaUnidade").addEventListener("click", openNovaUnidade);
+document.getElementById("openLinkAfericaoGlobal").addEventListener("click", openLinkAfericaoGlobal);
 document.getElementById("openNovoUsuario").addEventListener("click", openNovoUsuario);
 document.getElementById("testarDb").addEventListener("click", testarConexaoDb);
 document.getElementById("openNovoAgendamento").addEventListener("click", openNovoAgendamento);
@@ -4283,9 +4526,8 @@ document.getElementById("appBuild").textContent = APP_BUILD;
 initTheme();
 initLogoPadrao();
 const afParam = new URLSearchParams(location.search).get("af");
-const afDotIdx = afParam ? afParam.indexOf(".") : -1;
-if(afParam && afDotIdx>0){
-  initPublicAfericao(afParam.slice(0,afDotIdx), afParam.slice(afDotIdx+1));
+if(afParam){
+  initPublicAfericao();
 } else {
   restoreSession();
   if(session){ enterApp(); }
