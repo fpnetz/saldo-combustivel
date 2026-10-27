@@ -880,6 +880,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
     <!-- -------- AFERIÇÃO -------- -->
     <section id="view-afericao" hidden>
       <div class="fab-row">
+        <button class="btn btn-ghost" id="openLinkAfericaoGlobal2">Link de aferição</button>
         <button class="btn btn-ghost" id="openNovoAgendamento">+ Agendar aferição</button>
         <button class="btn btn-add" id="openNovaAfericao">+ Registrar aferição</button>
       </div>
@@ -1181,7 +1182,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-27-v50";
+const APP_BUILD = "2026-10-27-v51";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -4435,6 +4436,7 @@ document.getElementById("logoutBtn").addEventListener("click",()=>{
 document.getElementById("openIncluirSaldo").addEventListener("click",()=>openIncluirSaldo());
 document.getElementById("openNovaUnidade").addEventListener("click", openNovaUnidade);
 document.getElementById("openLinkAfericaoGlobal").addEventListener("click", openLinkAfericaoGlobal);
+document.getElementById("openLinkAfericaoGlobal2").addEventListener("click", openLinkAfericaoGlobal);
 document.getElementById("openNovoUsuario").addEventListener("click", openNovoUsuario);
 document.getElementById("testarDb").addEventListener("click", testarConexaoDb);
 document.getElementById("openNovoAgendamento").addEventListener("click", openNovoAgendamento);
