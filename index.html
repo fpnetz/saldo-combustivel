@@ -451,11 +451,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .pan-legend span{display:inline-flex;align-items:center;gap:5px}
 .pan-filter-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:color-mix(in srgb, var(--teal) 14%, var(--paper));color:var(--teal-ink);font-size:12.5px;font-weight:600;margin-bottom:12px}
 .pan-filter-chip button{background:none;border:0;color:inherit;cursor:pointer;font:inherit;padding:0;text-decoration:underline}
-.pan-city-dot{cursor:pointer}
-.pan-city-dot circle{stroke:#fff;stroke-width:1}
-.pan-city-dot.bad circle{animation:pulseCity 1.6s ease-in-out infinite}
-@keyframes pulseCity{0%,100%{r:4.2px}50%{r:5.6px}}
 #panCidadesExpand{margin-top:10px}
+.pan-empty-hint{font-size:12.5px;color:var(--muted);border:1px dashed var(--line);border-radius:10px;padding:12px;text-align:center;margin:0}
 .pan-city-list{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);animation:fadeIn .15s ease}
 .pan-city-list .pcl-title{font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:2px}
 .pan-city-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;padding:4px 6px;border-radius:6px}
@@ -797,7 +794,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       </div>
       <div class="pan-grid">
         <div class="pan-card">
-          <h3>Mapa por estado e cidade</h3>
+          <h3>Mapa por estado</h3>
           <div id="panMapWrap"></div>
           <div id="panCidadesExpand"></div>
           <div class="pan-resumo">
@@ -809,7 +806,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
               <div><span class="dot pend"></span> <b>Aguardando físico</b> — ainda não foi lançada a aferição física do período.</div>
               <div><span class="dot" style="background:var(--line)"></span> <b>Sem lançamento</b> — nenhum dado lançado no período avaliado.</div>
               <div><b>% do tanque</b> — a diferença (físico vs. calculado) expressa como percentual da capacidade do tanque; é essa % que define se o status é conciliado, fora do limite ou divergente.</div>
-              <div><b>Pontos no mapa</b> — cada ponto é uma cidade com unidade cadastrada; a cor segue o status da cidade. Clique no estado para ver a lista completa das cidades.</div>
+              <div><b>Clique no estado</b> — abre a lista com todas as cidades daquele estado; as divergentes/fora do limite ficam destacadas.</div>
             </div>
           </div>
         </div>
@@ -1231,7 +1228,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-27-v54";
+const APP_BUILD = "2026-10-27-v55";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1534,11 +1531,15 @@ function lancamentosDoTanque(tanqueId){
   return lancamentos.filter(l=>l.tanqueId===tanqueId).sort((a,b)=>a.data<b.data?-1:1);
 }
 // saldo acumulado do Abastecimento, por tanque, até uma data (inclusive)
+// quando abSaldoManual/supSaldoManual vem preenchido num lançamento, ele vira o novo saldo
+// direto (igual ao saldo físico/régua) — a Entrada/Saída daquele lançamento não entra na
+// conta, fica só como observação/justificativa do que motivou a mudança de saldo.
 function saldoAbastecimentoAte(tanque, dataLimite){
   let saldo = tanque.saldoInicial;
   for(const l of lancamentosDoTanque(tanque.id)){
     if(l.data > dataLimite) break;
-    saldo += (l.abEntrada||0) - (l.abSaida||0);
+    if(l.abSaldoManual!==null && l.abSaldoManual!==undefined && l.abSaldoManual!=="") saldo = Number(l.abSaldoManual);
+    else saldo += (l.abEntrada||0) - (l.abSaida||0);
   }
   return saldo;
 }
@@ -1554,7 +1555,8 @@ function saldoSuprimentoAteGrupo(unidadeId, tanqueIds, dataLimite){
   const all = suprimentos.filter(s=>s.unidadeId===unidadeId && s.grupoKey===grupoKey).sort((a,b)=>a.data<b.data?-1:1);
   for(const s of all){
     if(s.data > dataLimite) break;
-    saldo += (s.supEntrada||0) - (s.supSaida||0);
+    if(s.supSaldoManual!==null && s.supSaldoManual!==undefined && s.supSaldoManual!=="") saldo = Number(s.supSaldoManual);
+    else saldo += (s.supEntrada||0) - (s.supSaida||0);
   }
   return saldo;
 }
@@ -1993,7 +1995,7 @@ function renderPanMapa(summaries){
     const label = r ? `${s.n}: ${r.qtd} unidade(s) · ${PANO_STATUS_LABEL[r.pior]}` : `${s.n}: sem unidade cadastrada`;
     return `<path d="${s.p}" data-uf="${s.i}" class="uf${panoUFFiltro===s.i?' sel':''}" style="fill:${cor}" tabindex="${interativo?0:-1}" aria-label="${label}"><title>${label}</title></path>`;
   }).join("");
-  wrap.innerHTML = `<svg class="pan-map" id="panMapSvg" viewBox="${BR_VB}" role="img" aria-label="Mapa do Brasil por status das unidades e cidades">${paths}<g id="panCityDots"></g></svg>
+  wrap.innerHTML = `<svg class="pan-map" id="panMapSvg" viewBox="${BR_VB}" role="img" aria-label="Mapa do Brasil por status das unidades e cidades">${paths}</svg>
     <div class="pan-legend">
       <span><span class="dot ok"></span>Conciliado</span>
       <span><span class="dot warn"></span>Fora do limite</span>
@@ -2001,32 +2003,7 @@ function renderPanMapa(summaries){
       <span><span class="dot pend"></span>Aguardando físico</span>
       <span><span class="dot" style="background:var(--line)"></span>Sem lançamento</span>
     </div>`;
-  // pontos aproximados por cidade: agrupa as unidades de cada UF em torno do centro geométrico do estado no mapa
-  const dotsG = wrap.querySelector("#panCityDots");
-  const dotsHtml = [];
-  BR_MAP.forEach(s=>{
-    const cidades = summaries.filter(sm=>sm.u.estado===s.i);
-    if(!cidades.length) return;
-    const pathEl = wrap.querySelector(`path[data-uf="${s.i}"]`);
-    let cx=0, cy=0;
-    try{ const bb = pathEl.getBBox(); cx = bb.x + bb.width/2; cy = bb.y + bb.height/2; } catch(e){ return; }
-    const n = cidades.length;
-    cidades.forEach((sm,i)=>{
-      let dx=0, dy=0;
-      if(n>1){
-        const ang = (2*Math.PI*i/n) - Math.PI/2;
-        const raio = Math.min(14, 5 + n*1.4);
-        dx = raio*Math.cos(ang); dy = raio*Math.sin(ang);
-      }
-      const st = sm.status || "sem";
-      const cor = PANO_STATUS_VARCOLOR[st];
-      dotsHtml.push(`<g class="pan-city-dot ${st}" data-uf="${s.i}" tabindex="0" aria-label="${sm.u.nome}: ${PANO_STATUS_LABEL[st]}">
-        <circle cx="${(cx+dx).toFixed(1)}" cy="${(cy+dy).toFixed(1)}" r="4.2" fill="${cor}"><title>${sm.u.nome} (${s.n}) — ${PANO_STATUS_LABEL[st]}</title></circle>
-      </g>`);
-    });
-  });
-  dotsG.innerHTML = dotsHtml.join("");
-  wrap.querySelectorAll(".uf[tabindex='0'], .pan-city-dot").forEach(el=>{
+  wrap.querySelectorAll(".uf[tabindex='0']").forEach(el=>{
     el.addEventListener("click", ()=>{
       const uf = el.dataset.uf;
       panoUFFiltro = panoUFFiltro===uf ? null : uf;
@@ -2037,7 +2014,7 @@ function renderPanMapa(summaries){
 }
 function renderPanCidadesExpand(summariesTodas){
   const el = document.getElementById("panCidadesExpand");
-  if(!panoUFFiltro){ el.innerHTML = ""; return; }
+  if(!panoUFFiltro){ el.innerHTML = `<p class="pan-empty-hint">Clique em um estado no mapa para ver as cidades.</p>`; return; }
   const cidades = summariesTodas.filter(s=>s.u.estado===panoUFFiltro).sort((a,b)=>{
     const ra = STATUS_RANK[a.status]||0, rb = STATUS_RANK[b.status]||0;
     return rb-ra || a.u.nome.localeCompare(b.u.nome);
@@ -2195,7 +2172,11 @@ function diffTrendData(tanque, max, listaLancamentos){
   if(ls.length<2) return null;
   const calcAte = (dataLimite)=>{
     let s = tanque.saldoInicial;
-    for(const l of doTanque){ if(l.data>dataLimite) break; s += (l.abEntrada||0)-(l.abSaida||0); }
+    for(const l of doTanque){
+      if(l.data>dataLimite) break;
+      if(l.abSaldoManual!==null && l.abSaldoManual!==undefined && l.abSaldoManual!=="") s = Number(l.abSaldoManual);
+      else s += (l.abEntrada||0)-(l.abSaida||0);
+    }
     return s;
   };
   const recentes = ls.slice(-(max||8));
@@ -3195,6 +3176,8 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
             <div class="field" id="mEntradaWrap" hidden><label>Entrada Abastecimento (l)</label><input type="number" id="mEntrada" value="0" min="0"></div>
             <div class="field"><label>Saída Abastecimento (l)</label><input type="number" id="mSaida" value="0" min="0"></div>
           </div>
+          <div class="field"><label>Saldo Abastecimento (l) — opcional</label><input type="number" id="mAbSaldo" placeholder="deixe em branco para somar Entrada/Saída"></div>
+          <p class="hint" style="margin:-4px 0 4px">Se preenchido, esse valor vira o novo saldo do sistema direto (igual ao saldo físico) — a Entrada/Saída acima passa a valer só como observação, sem somar.</p>
 
           <div class="section-label">Suprimento (bomba)</div>
           <p class="hint" style="margin:-4px 0 10px" id="mSupHint">Repete automaticamente a Entrada/Saída do Abastecimento acima — só mude se o Suprimento da bomba foi diferente.</p>
@@ -3202,6 +3185,8 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
             <div class="field"><label>Entrada de Suprimento (l)</label><input type="number" id="mSupEntrada" value="0" min="0"></div>
             <div class="field"><label>Saída de Suprimento (l)</label><input type="number" id="mSupSaida" value="0" min="0"></div>
           </div>
+          <div class="field"><label>Saldo Suprimento (l) — opcional</label><input type="number" id="mSupSaldo" placeholder="deixe em branco para somar Entrada/Saída"></div>
+          <p class="hint" style="margin:-4px 0 4px">Mesmo princípio: se preenchido, vira o novo saldo do Suprimento direto — a Entrada/Saída acima vira só observação.</p>
 
           <div class="section-label">Anexos</div>
           <div class="upload-row">
@@ -3274,13 +3259,16 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     const {abE, abS} = getMovimento();
     document.getElementById("mSupEntrada").value = abE;
     document.getElementById("mSupSaida").value = abS;
+    document.getElementById("mSupSaldo").value = document.getElementById("mAbSaldo").value;
   }
   document.getElementById("mEntrada").addEventListener("input", ()=>{ mirrarSuprimentoSeNaoEditado(); updatePreview(); });
   document.getElementById("mSaida").addEventListener("input", ()=>{ mirrarSuprimentoSeNaoEditado(); updatePreview(); });
+  document.getElementById("mAbSaldo").addEventListener("input", ()=>{ mirrarSuprimentoSeNaoEditado(); updatePreview(); });
 
   if(isEdit){
     document.getElementById("mFisico").value = (editLancamento.saldoFisico===null||editLancamento.saldoFisico===undefined) ? "" : editLancamento.saldoFisico;
     document.getElementById("mSaida").value = editLancamento.abSaida||0;
+    document.getElementById("mAbSaldo").value = (editLancamento.abSaldoManual===null||editLancamento.abSaldoManual===undefined) ? "" : editLancamento.abSaldoManual;
     document.getElementById("mObs").value = editLancamento.obs||"";
     if(editLancamento.abEntrada){
       document.getElementById("mHouve").querySelectorAll(".radio-opt").forEach(o=>o.classList.toggle("active", o.dataset.v==="sim"));
@@ -3334,6 +3322,17 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     const saida = Number(document.getElementById("mSaida").value||0);
     return { abE:entrada, abS:saida };
   }
+  // saldo direto (opcional) — quando preenchido, vira o novo saldo do sistema na hora (igual
+  // ao saldo físico), em vez de somar Entrada/Saída; Entrada/Saída continuam salvas, mas só
+  // como observação/justificativa, sem entrar na conta do saldo acumulado.
+  function getAbSaldoManual(){
+    const v = document.getElementById("mAbSaldo").value;
+    return v===""||v===null ? null : Number(v);
+  }
+  function getSupSaldoManual(){
+    const v = document.getElementById("mSupSaldo").value;
+    return v===""||v===null ? null : Number(v);
+  }
 
   function suprimentoExistente(){
     const t = currentTanque(); const u = unidades.find(x=>x.id===mUnidade.value);
@@ -3349,16 +3348,18 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     if(existente){
       document.getElementById("mSupEntrada").value = existente.supEntrada||0;
       document.getElementById("mSupSaida").value = existente.supSaida||0;
+      document.getElementById("mSupSaldo").value = (existente.supSaldoManual===null||existente.supSaldoManual===undefined) ? "" : existente.supSaldoManual;
       supEditado = true; // já tem um valor próprio lançado — não sobrescrever espelhando o Abastecimento
       hint.textContent = "Já existe Suprimento lançado para esta bomba nesta data — ajuste abaixo se precisar.";
     } else {
       const {abE, abS} = getMovimento();
       document.getElementById("mSupEntrada").value = abE;
       document.getElementById("mSupSaida").value = abS;
+      document.getElementById("mSupSaldo").value = document.getElementById("mAbSaldo").value;
       hint.textContent = "Repete automaticamente a Entrada/Saída do Abastecimento acima — só mude se o Suprimento da bomba foi diferente.";
     }
   }
-  [document.getElementById("mSupEntrada"), document.getElementById("mSupSaida")].forEach(el=>{
+  [document.getElementById("mSupEntrada"), document.getElementById("mSupSaida"), document.getElementById("mSupSaldo")].forEach(el=>{
     el.addEventListener("input", ()=>{ supEditado = true; updatePreview(); });
   });
 
@@ -3375,15 +3376,18 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     const fisico = document.getElementById("mFisico").value===""? null : Number(document.getElementById("mFisico").value);
 
     const grupoIds = grupoDeTanques(u, t.id);
+    const abSaldoManual = getAbSaldoManual();
     const saldoAbAnterior = saldoAbastecimentoAte(t, prevDate(data));
-    const saldoAbNovo = saldoAbAnterior + abE - abS;
+    const saldoAbNovo = abSaldoManual!==null ? abSaldoManual : saldoAbAnterior + abE - abS;
     // Suprimento lançado junto, neste mesmo formulário: soma o que já havia até o dia
     // anterior com os valores digitados agora nos campos de Suprimento (iguala o
-    // Abastecimento por padrão, mas pode ser ajustado manualmente acima).
+    // Abastecimento por padrão, mas pode ser ajustado manualmente acima) — a menos que o
+    // Saldo Suprimento tenha sido preenchido direto, aí ele vira o novo saldo na hora.
     const supE = Number(document.getElementById("mSupEntrada").value||0);
     const supS = Number(document.getElementById("mSupSaida").value||0);
+    const supSaldoManual = getSupSaldoManual();
     const saldoSupAnterior = saldoSuprimentoAteGrupo(u.id, grupoIds, prevDate(data));
-    const saldoSupAtual = saldoSupAnterior + supE - supS;
+    const saldoSupAtual = supSaldoManual!==null ? supSaldoManual : saldoSupAnterior + supE - supS;
     const somaOutros = tanquesDoGrupo(u.id,t.id).filter(x=>x.id!==t.id).reduce((s,x)=>s+saldoAbastecimentoAte(x,data),0);
     const diffAbSup = saldoSupAtual - (saldoAbNovo + somaOutros);
     const cls = classificar(diffAbSup, fisico, saldoAbNovo);
@@ -3454,7 +3458,7 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
       }
       const l = {
         id: novoId, unidadeId:u.id, tanqueId:t.id, produto:t.produto, data,
-        abEntrada:abE, abSaida:abS,
+        abEntrada:abE, abSaida:abS, abSaldoManual:getAbSaldoManual(),
         saldoFisico:fisico, printAssetId, fotoAssetId, obs, exemplo:false,
       };
       await saveLancamento(l);
@@ -3468,7 +3472,7 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
       const s = {
         id: supExistente ? supExistente.id : ("sup-"+u.id+"-"+grupoKey.replace(/,/g,"_")+"-"+data+"-"+Date.now().toString(36)),
         unidadeId:u.id, grupoKey, tanqueIds:grupoIds, data,
-        supEntrada:supE, supSaida:supS, obs,
+        supEntrada:supE, supSaida:supS, supSaldoManual:getSupSaldoManual(), obs,
         criadoPor: session.nome, criadoEm: new Date().toISOString(),
       };
       await saveSuprimento(s);
@@ -3499,7 +3503,7 @@ function blocosTanqueDetalhe(g, paraImpressao){
         <div class="calc-preview">
           <div class="row"><span>Saldo Abastecimento</span><b class="num">${fmtL(saldoAbT)}</b></div>
           <div class="row"><span>Saldo Físico</span><b class="num">${fmtL(fisicoT)}</b></div>
-          ${l?`<div class="row"><span>Entrada / Saída (Abastecimento)</span><b class="num">${fmtL(l.abEntrada)} / ${fmtL(l.abSaida)}</b></div>`:""}
+          ${l?`<div class="row"><span>Entrada / Saída (Abastecimento)${(l.abSaldoManual!==null&&l.abSaldoManual!==undefined&&l.abSaldoManual!=="")?' <span class="hint" style="text-transform:none;font-weight:400">— apenas observação, saldo informado direto</span>':""}</span><b class="num">${fmtL(l.abEntrada)} / ${fmtL(l.abSaida)}</b></div>`:""}
           <div class="row"><span>Capacidade do tanque</span><b class="num">${fmtL(t.capacidade)}</b></div>
         </div>
         ${occBarHtml(ocupacao(t.capacidade, fisicoT!==null?fisicoT:saldoAbT))}
@@ -4787,7 +4791,8 @@ function renderPublicAfericao(){
         const ls = historicoLancamentos.filter(l=>l.tanqueId===tanqueId).sort((a,b)=>a.data<b.data?-1:1);
         for(const l of ls){
           if(l.data > dataLimite) break;
-          saldo += (l.abEntrada||0) - (l.abSaida||0);
+          if(l.abSaldoManual!==null && l.abSaldoManual!==undefined && l.abSaldoManual!=="") saldo = Number(l.abSaldoManual);
+          else saldo += (l.abEntrada||0) - (l.abSaida||0);
         }
         return saldo;
       };
