@@ -327,8 +327,10 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .badge.warn{background:var(--warn-bg);color:var(--warn)}
 .badge.bad{background:var(--bad-bg);color:var(--bad)}
 .badge.pend{background:var(--pend-bg);color:var(--pend)}
-.diff-pos{color:var(--ok)}
-.diff-neg{color:var(--bad)}
+.diff-ok{color:var(--ok)}
+.diff-warn{color:var(--warn)}
+.diff-bad{color:var(--bad)}
+.diff-pend{color:var(--pend)}
 .saida-val{font-weight:700}
 .att-chip{display:inline-flex;gap:4px;color:var(--muted);font-size:12px}
 .empty{padding:48px 16px;text-align:center;color:var(--muted)}
@@ -1228,7 +1230,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-27-v57";
+const APP_BUILD = "2026-10-27-v58";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1719,7 +1721,7 @@ function badgeHtml(cls){
 }
 function rowHtml(r){
   const diffTxt = r.cls.diffFis===undefined ? "—" : (r.cls.diffFis>=0?"+":"")+fmtNum.format(r.cls.diffFis)+" l"+(r.cls.pct!==undefined?` (${fmtPct.format(r.cls.pct)}%)`:"");
-  const diffClass = r.cls.diffFis>0?"diff-pos":(r.cls.diffFis<0?"diff-neg":"");
+  const diffClass = r.cls.diffFis===undefined ? "" : "diff-"+r.cls.status;
   const att = r.lancDoDia.reduce((s,l)=>s+(l.printAssetId?1:0)+(l.fotoAssetId?1:0),0);
   const tanquesComMovimento = r.lancDoDia.map(l=>r.tanques.find(t=>t.id===l.tanqueId)).filter(Boolean);
   const tanquesTxt = tanquesComMovimento.length>=r.tanques.length
@@ -2478,7 +2480,7 @@ function renderAfericao(){
   document.getElementById("afEmpty").hidden = afer.length>0;
   tbody.innerHTML = afer.map(a=>{
     const diffTxt = (a.diff>=0?"+":"")+fmtNum.format(a.diff)+" l";
-    const diffClass = a.diff>0?"diff-pos":(a.diff<0?"diff-neg":"");
+    const diffClass = "diff-"+a.status;
     return `<tr>
       <td>${fmtDate(a.data)}</td>
       <td>Tanque ${a.tanque.numero} · ${a.tanque.produto}</td>
