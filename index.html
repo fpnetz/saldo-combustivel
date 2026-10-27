@@ -1191,7 +1191,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-27-v52";
+const APP_BUILD = "2026-10-27-v53";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -2136,16 +2136,19 @@ function renderAfericao(){
     if(!hist.length){
       histBody.innerHTML = `<tr><td colspan="8" class="muted">Nenhuma aferição de bomba registrada para esta unidade ainda.</td></tr>`;
     } else {
+      const LIMITE_URGENTE_L = 2.5;
       histBody.innerHTML = hist.map(a=>{
         const b = u && bombasDaUnidade(u).find(x=>x.id===a.bombaId);
         const podeExcluir = podeAgendarUnidade(a.unidadeId);
+        const diferencaTotal = (a.diferencas||a.pulls.map(p=>p.diferenca)).reduce((s,d)=>s+(d||0),0);
+        const urgente = Math.abs(diferencaTotal) > LIMITE_URGENTE_L;
         return `<tr data-id="${a.id}">
           <td>${fmtDate(a.data)}</td>
           <td>Bomba ${b?b.numero:"?"}</td>
           <td class="num">${fmtLFino(a.litragemPadrao)}</td>
           <td class="num">${a.pulls.length}</td>
           <td class="num">${(a.diferencaMedia>=0?"+":"")}${fmtLFino(a.diferencaMedia)}</td>
-          <td><span class="afericao-pill ${a.status}">${STATUS_LABEL[a.status]||a.status}</span></td>
+          <td><span class="afericao-pill ${a.status}">${STATUS_LABEL[a.status]||a.status}</span>${urgente?`<div class="afer-urgente">⚠ Solicitar urgentemente aferição da bomba</div>`:""}</td>
           <td>${a.anexoAssetId?`<a href="${a.anexoAssetId}" target="_blank" rel="noopener" class="att-chip">1 anexo</a>`:`<span class="att-chip">—</span>`}</td>
           <td>${podeExcluir?`<button class="btn btn-ghost" data-excluir-afb="${a.id}" style="padding:4px 10px">Excluir</button>`:""}</td>
         </tr>`;
@@ -2239,11 +2242,9 @@ function renderAfericao(){
   const tbody = document.getElementById("afTbody");
   document.getElementById("afCount").textContent = afer.length+" registro(s)";
   document.getElementById("afEmpty").hidden = afer.length>0;
-  const LIMITE_URGENTE_L = 2.5;
   tbody.innerHTML = afer.map(a=>{
     const diffTxt = (a.diff>=0?"+":"")+fmtNum.format(a.diff)+" l";
     const diffClass = a.diff>0?"diff-pos":(a.diff<0?"diff-neg":"");
-    const urgente = Math.abs(a.diff) > LIMITE_URGENTE_L;
     return `<tr>
       <td>${fmtDate(a.data)}</td>
       <td>Tanque ${a.tanque.numero} · ${a.tanque.produto}</td>
@@ -2251,7 +2252,7 @@ function renderAfericao(){
       <td class="num">${fmtL(a.saldoFisico)}</td>
       <td class="num ${diffClass}">${diffTxt}</td>
       <td class="num"><b>${fmtPct.format(a.pct)}%</b></td>
-      <td>${badgeHtml({status:a.status})}${urgente?`<div class="afer-urgente">⚠ Solicitar urgentemente aferição da bomba</div>`:""}</td>
+      <td>${badgeHtml({status:a.status})}</td>
     </tr>`;
   }).join("");
 }
@@ -2449,23 +2450,24 @@ function gerarComprovantePdf(c, u){
   kpiItems.push(["Bombas aferidas", c.bombas.length, PDFC.BLUE]);
   content.push(pdfKpiRow(kpiItems));
   content.push(pdfH2("Aferição de tanque (saldo físico)"));
-  const tanqueAlerta = c.tanques.some(t=>t.urgente);
-  if(tanqueAlerta){
-    content.push({ text:"⚠ Diferença acima de 2,5 l em pelo menos um tanque — SOLICITAR URGENTEMENTE AFERIÇÃO DA BOMBA.",
-      fontSize:9.5, bold:true, color:PDFC.RED, margin:[0,0,0,8] });
-  }
   content.push(pdfStyledTable(
     ["Tanque","Combustível","Saldo físico (l)","Diferença (calc. × físico)","Foto da régua"],
     c.tanques.map(t=>[t.numero, t.produto, fmtNum.format(t.saldoFisico),
-      typeof t.diferenca==="number" ? (t.diferenca>=0?"+":"")+fmtLFino(t.diferenca)+(t.urgente?" ⚠":"") : "—",
+      typeof t.diferenca==="number" ? (t.diferenca>=0?"+":"")+fmtLFino(t.diferenca) : "—",
       t.fotoAssetId?"Anexada":"—"]),
     { numCols:[2,3] }
   ));
   if(c.bombas.length){
     content.push(pdfH2("Aferição de bomba"));
+    const bombaAlerta = c.bombas.some(b=>b.urgente);
+    if(bombaAlerta){
+      content.push({ text:"⚠ Diferença acima de 2,5 l em pelo menos uma bomba — SOLICITAR URGENTEMENTE AFERIÇÃO DA BOMBA.",
+        fontSize:9.5, bold:true, color:PDFC.RED, margin:[0,0,0,8] });
+    }
     content.push(pdfStyledTable(
       ["Bomba","Tanque(s) vinculado(s)","Qtd. aferições","Qtd. por aferição (l)","Diferença total (l)","Última aferição anterior"],
-      c.bombas.map(b=>[b.numero, b.tanquesTxt, b.qtd, fmtNum.format(b.litragemPadrao), (b.diferencaTotal>=0?"+":"")+fmtLFino(b.diferencaTotal), b.ultimaTxt||"—"]),
+      c.bombas.map(b=>[b.numero, b.tanquesTxt, b.qtd, fmtNum.format(b.litragemPadrao),
+        (b.diferencaTotal>=0?"+":"")+fmtLFino(b.diferencaTotal)+(b.urgente?" ⚠":""), b.ultimaTxt||"—"]),
       { numCols:[2,3,4] }
     ));
   }
@@ -4431,7 +4433,6 @@ function renderPublicAfericao(){
         return saldo;
       };
 
-      const LIMITE_URGENTE_L = 2.5;
       const tanquesComprovante = [];
       for(const t of tanques){
         const fisico = Number(document.getElementById(`afPubFisico-${t.id}`).value);
@@ -4456,8 +4457,7 @@ function renderPublicAfericao(){
         const saldoCalc = saldoCalculadoAte(t.id, data, t.saldoInicial);
         const diferenca = saldoCalc - fisico;
         tanquesComprovante.push({
-          numero:t.numero, produto:t.produto, saldoFisico:fisico, fotoAssetId,
-          diferenca, urgente: Math.abs(diferenca) > LIMITE_URGENTE_L,
+          numero:t.numero, produto:t.produto, saldoFisico:fisico, fotoAssetId, diferenca,
         });
       }
 
@@ -4483,6 +4483,7 @@ function renderPublicAfericao(){
           numero:b.numero,
           tanquesTxt: tanquesDaBomba(u,b).map(t=>t.numero).join(", ")||"—",
           qtd: diffs.length, litragemPadrao:20, diferencaTotal,
+          urgente: Math.abs(diferencaTotal) > 2.5,
           ultimaTxt: ultima ? `${fmtDate(ultima.data)} — ${(ultima.diferencaMedia>=0?"+":"")}${fmtLFino(ultima.diferencaMedia)}` : null,
         });
       }
