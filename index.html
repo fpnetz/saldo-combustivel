@@ -1228,7 +1228,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-27-v56";
+const APP_BUILD = "2026-10-27-v57";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1609,9 +1609,12 @@ function classificar(diffAbSup, saldoFisico, saldoAb){
   if(saldoFisico===null || saldoFisico===undefined){
     return okPonto1 ? {status:"pend", label:"Aguardando físico"} : {status:"bad", label:"Divergente (sist. x sist.)"};
   }
-  if(!okPonto1) return {status:"bad", label:"Divergente (sist. x sist.)"};
+  // diferença contra o físico é calculada sempre que há leitura física — mesmo quando
+  // Abastecimento x Suprimento não batem entre si — para não esconder o número da
+  // tabela; o status "sist. x sist." continua prevalecendo (é o problema mais grave).
   const diffFis = saldoAb - saldoFisico;
   const pct = saldoFisico!==0 ? Math.abs(diffFis)/Math.abs(saldoFisico)*100 : (diffFis===0?0:100);
+  if(!okPonto1) return {status:"bad", label:"Divergente (sist. x sist.)", pct, diffFis};
   if(pct <= MARGEM.ok) return {status:"ok", label:"Conciliado", pct, diffFis};
   if(pct <= MARGEM.warn) return {status:"warn", label:"Fora do limite", pct, diffFis};
   return {status:"bad", label:"Divergente", pct, diffFis};
