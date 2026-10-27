@@ -1228,7 +1228,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-27-v55";
+const APP_BUILD = "2026-10-27-v56";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3176,8 +3176,8 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
             <div class="field" id="mEntradaWrap" hidden><label>Entrada Abastecimento (l)</label><input type="number" id="mEntrada" value="0" min="0"></div>
             <div class="field"><label>Saída Abastecimento (l)</label><input type="number" id="mSaida" value="0" min="0"></div>
           </div>
-          <div class="field"><label>Saldo Abastecimento (l) — opcional</label><input type="number" id="mAbSaldo" placeholder="deixe em branco para somar Entrada/Saída"></div>
-          <p class="hint" style="margin:-4px 0 4px">Se preenchido, esse valor vira o novo saldo do sistema direto (igual ao saldo físico) — a Entrada/Saída acima passa a valer só como observação, sem somar.</p>
+          <div class="field"><label>Saldo Abastecimento (l)</label><input type="number" id="mAbSaldo" placeholder="obrigatório"></div>
+          <p class="hint" style="margin:-4px 0 4px">Esse valor vira o saldo do sistema direto (igual ao saldo físico) — a Entrada/Saída acima é só observação/justificativa, não soma no cálculo.</p>
 
           <div class="section-label">Suprimento (bomba)</div>
           <p class="hint" style="margin:-4px 0 10px" id="mSupHint">Repete automaticamente a Entrada/Saída do Abastecimento acima — só mude se o Suprimento da bomba foi diferente.</p>
@@ -3185,8 +3185,8 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
             <div class="field"><label>Entrada de Suprimento (l)</label><input type="number" id="mSupEntrada" value="0" min="0"></div>
             <div class="field"><label>Saída de Suprimento (l)</label><input type="number" id="mSupSaida" value="0" min="0"></div>
           </div>
-          <div class="field"><label>Saldo Suprimento (l) — opcional</label><input type="number" id="mSupSaldo" placeholder="deixe em branco para somar Entrada/Saída"></div>
-          <p class="hint" style="margin:-4px 0 4px">Mesmo princípio: se preenchido, vira o novo saldo do Suprimento direto — a Entrada/Saída acima vira só observação.</p>
+          <div class="field"><label>Saldo Suprimento (l)</label><input type="number" id="mSupSaldo" placeholder="obrigatório"></div>
+          <p class="hint" style="margin:-4px 0 4px">Mesmo princípio: vira o saldo do Suprimento direto — a Entrada/Saída acima vira só observação.</p>
 
           <div class="section-label">Anexos</div>
           <div class="upload-row">
@@ -3434,6 +3434,8 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     if(!u){ showToast("Selecione a unidade."); return; }
     const data = document.getElementById("mData").value;
     if(!data){ showToast("Informe a data."); return; }
+    if(getAbSaldoManual()===null){ showToast("Informe o Saldo Abastecimento."); return; }
+    if(getSupSaldoManual()===null){ showToast("Informe o Saldo Suprimento."); return; }
     saveBtn.disabled = true; saveBtn.textContent = "Salvando...";
     try{
       const {abE, abS} = getMovimento();
