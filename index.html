@@ -638,6 +638,12 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 .badge-example{font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--line);padding:2px 8px;border-radius:999px}
 [hidden]{display:none!important}
+
+/* ---------- Link público de aferição ---------- */
+#afPublico{position:fixed;inset:0;background:var(--bg);z-index:50;overflow:auto}
+.af-pub-wrap{max-width:640px;margin:0 auto;padding:28px 16px 60px}
+.af-pub-card{background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:24px 22px;margin-bottom:16px;font-family:"IBM Plex Sans",system-ui,sans-serif}
+.af-pub-card .field{margin-bottom:12px}
 </style>
 </head>
 <body>
@@ -1072,6 +1078,20 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       </div>
     </section>
   </main>
+</div>
+
+<!-- ============ LINK PÚBLICO DE AFERIÇÃO (?af=<unidadeId>.<token>) ============ -->
+<div id="afPublico" hidden>
+  <div class="af-pub-wrap">
+    <div class="af-pub-card">
+      <div class="login-brand" style="margin-bottom:18px">
+        <img src="data:image/png;base64,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" alt="Atlântico Transportes" class="brand-logo-img">
+        <span class="login-brand-divider"></span>
+        <span class="login-brand-label">Registro de aferição</span>
+      </div>
+      <div id="afPubBody"><p class="muted">Carregando...</p></div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -3119,6 +3139,7 @@ function renderCadastro(){
           </div>
         </div>
         <div class="fab-row" style="margin:0;gap:8px">
+          <button class="btn btn-ghost" data-link-afericao="${u.id}">Link de aferição</button>
           <button class="btn btn-ghost" data-toggle-unidade="${u.id}">${uAtiva?"Desativar":"Reativar"}</button>
           <button class="btn btn-ghost" data-del-unidade="${u.id}">Excluir unidade</button>
         </div>
@@ -3190,6 +3211,9 @@ function renderCadastro(){
       const [unidadeId, tanqueId] = el.dataset.toggleTanque.split("|");
       await toggleAtivoTanque(unidadeId, tanqueId);
     });
+  });
+  wrap.querySelectorAll("[data-link-afericao]").forEach(el=>{
+    el.addEventListener("click", ()=>openLinkAfericao(el.dataset.linkAfericao));
   });
   wrap.querySelectorAll("[data-toggle-unidade]").forEach(el=>{
     el.addEventListener("click", ()=>toggleAtivoUnidade(el.dataset.toggleUnidade));
@@ -3504,6 +3528,60 @@ function openNovoAgendamento(){
   };
 }
 
+// token usado no link público de aferição (?af=<unidadeId>.<token>) — não é segredo
+// criptográfico forte, só precisa ser difícil de adivinhar; qualquer um com o link
+// consegue lançar aferição daquela unidade específica, sem senha.
+function gerarTokenAfericao(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g,"").slice(0,12);
+  return Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,6);
+}
+function linkAfericaoUnidade(u){
+  return location.origin + location.pathname + "?af=" + encodeURIComponent(u.id) + "." + encodeURIComponent(u.tokenAfericao);
+}
+async function openLinkAfericao(unidadeId){
+  if(!requireAdmin()) return;
+  const u = unidades.find(x=>x.id===unidadeId); if(!u) return;
+  if(!u.tokenAfericao){ u.tokenAfericao = gerarTokenAfericao(); await saveUnidade(u); }
+  document.getElementById("linkAfModalBackdrop")?.remove();
+  const link = linkAfericaoUnidade(u);
+  const html = `
+    <div class="modal-backdrop" id="linkAfModalBackdrop">
+      <div class="modal" style="max-width:480px">
+        <div class="modal-head"><h2>Link de aferição — ${u.nome}</h2><button class="close-x" id="linkAfClose">&times;</button></div>
+        <div class="modal-body">
+          <p class="hint" style="margin-top:0">Compartilhe este link com a unidade (ex: no grupo de avisos). Quem abrir consegue registrar o saldo físico dos tanques e a aferição de bomba direto, sem acessar o resto do sistema e sem precisar de usuário/senha.</p>
+          <div class="field"><label>Link</label><input id="linkAfInput" readonly value="${link}"></div>
+          <p class="hint" id="linkAfHint"></p>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" id="linkAfRegerar">Gerar novo link</button>
+          <button class="btn btn-primary" id="linkAfCopiar">Copiar link</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
+  const bd = document.getElementById("linkAfModalBackdrop");
+  document.getElementById("linkAfClose").onclick = ()=>bd.remove();
+  bd.addEventListener("click",(e)=>{ if(e.target===bd) bd.remove(); });
+  document.getElementById("linkAfCopiar").onclick = async ()=>{
+    const input = document.getElementById("linkAfInput");
+    try{
+      await navigator.clipboard.writeText(input.value);
+      showToast("Link copiado.");
+    }catch(e){
+      input.select();
+      showToast("Não foi possível copiar automaticamente — link selecionado, use Ctrl+C.");
+    }
+  };
+  document.getElementById("linkAfRegerar").onclick = async ()=>{
+    if(!(await askConfirm("Gerar um novo link? O link antigo para de funcionar imediatamente — quem ainda não usou vai precisar do novo."))) return;
+    u.tokenAfericao = gerarTokenAfericao();
+    await saveUnidade(u);
+    document.getElementById("linkAfInput").value = linkAfericaoUnidade(u);
+    showToast("Novo link gerado — o antigo não funciona mais.");
+  };
+}
+
 function openNovaUnidade(){
   if(!requireAdmin()) return;
   document.getElementById("uModalBackdrop")?.remove();
@@ -3529,7 +3607,7 @@ function openNovaUnidade(){
     const estado = document.getElementById("uEstado").value.trim().toUpperCase();
     if(!nome || !estado){ showToast("Informe cidade e estado."); return; }
     const id = nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-");
-    await saveUnidade({ id, nome, estado, tanques:[], ativo:true });
+    await saveUnidade({ id, nome, estado, tanques:[], ativo:true, tokenAfericao: gerarTokenAfericao() });
     bd.remove(); renderCadastro(); populateFilterUnidades(); populateFilterUnidadesRelatorio();
     showToast("Unidade criada.");
   };
@@ -3982,6 +4060,111 @@ async function enterApp(){
   setView("dashboard");
 }
 
+/* ===================== Link público de aferição (sem login) =====================
+   Aberto via ?af=<unidadeId>.<token>. Mostra só um formulário simples de saldo
+   físico + aferição de bomba daquela unidade, sem dar acesso ao resto do sistema.
+   Reaproveita saveLancamento/saveAfericaoBomba (não dependem de sessão) e, pro
+   sub-formulário de aferição de bomba, reaproveita o próprio openNovaAfericaoBomba
+   simulando uma sessão de "controlador" restrita a essa unidade, só nesta aba. */
+async function initPublicAfericao(unidadeId, token){
+  document.getElementById("login").style.display = "none";
+  document.getElementById("themeToggleLogin").hidden = true;
+  document.getElementById("app").style.display = "none";
+  document.getElementById("afPublico").hidden = false;
+  const body = document.getElementById("afPubBody");
+  let ns = null;
+  try{ ns = await claude.use("db"); }catch(e){ ns = null; }
+  if(!ns){
+    body.innerHTML = `<p>Não foi possível conectar ao banco de dados agora. Recarregue a página e tente de novo.</p>`;
+    return;
+  }
+  let doc = null;
+  try{ doc = await ns.doc("unidades/"+unidadeId).get(); }catch(e){ doc = null; }
+  const u = doc && doc.exists ? doc.data() : null;
+  if(!u || !u.tokenAfericao || u.tokenAfericao!==token){
+    body.innerHTML = `<p><b>Link inválido ou expirado.</b> Peça um novo link de aferição ao administrador do sistema.</p>`;
+    return;
+  }
+  dbNs = ns; dbAvailable = true;
+  try{ assetsNs = await claude.use("assets"); }catch(e){ assetsNs = null; }
+  unidades = [u];
+  lancamentos = []; afericoesBomba = []; suprimentos = [];
+  session = { user:"link-publico", role:"controlador", nome:"Link público — "+u.nome, unidadeId: u.id };
+  renderPublicAfericao(u);
+}
+function renderPublicAfericao(u){
+  const body = document.getElementById("afPubBody");
+  const tanques = u.tanques.filter(tanqueAtivo);
+  const bombasAtivas = bombasDaUnidade(u).filter(bombaAtiva);
+  body.innerHTML = `
+    <h1 style="font-size:19px;margin:0 0 2px">${u.nome}</h1>
+    <p class="hint" style="margin:0 0 18px">Link de aferição desta unidade — não dá acesso ao restante do sistema. Preencha o saldo físico de cada tanque e, se precisar, registre a aferição de bomba.</p>
+    ${tanques.length ? `
+    <div class="section-label" style="margin-top:0">Saldo físico</div>
+    <div class="field"><label>Data da leitura</label><input type="date" id="afPubData" value="${dstr(new Date())}"></div>
+    ${tanques.map(t=>`
+      <div class="field">
+        <label>Tanque ${t.numero} (${t.produto}) — saldo físico (l)</label>
+        <input type="number" min="0" id="afPubFisico-${t.id}" placeholder="deixe em branco se não for aferir este tanque agora">
+      </div>
+      <div class="upload-row" style="margin-bottom:16px">
+        <label class="upload-box" id="afPubFotoBox-${t.id}"><span class="upload-box-text">Foto da régua — ${t.numero} (opcional)</span><div class="upload-box-preview"></div><input type="file" id="afPubFoto-${t.id}" accept="image/*"></label>
+      </div>`).join("")}
+    <button class="btn btn-primary" id="afPubSalvarFisico" type="button">Registrar saldo físico</button>
+    ` : ""}
+    ${bombasAtivas.length ? `
+    <div class="section-label">Aferição de bomba</div>
+    <p class="hint" style="margin-top:-4px">Teste de precisão do bico (encerrante antes/depois).</p>
+    <div class="tank-row">
+      ${bombasAtivas.map(b=>`<button type="button" class="btn btn-ghost" data-af-pub-bomba="${b.id}">Registrar aferição — Bomba ${b.numero}</button>`).join("")}
+    </div>
+    ` : ""}
+    ${(!tanques.length && !bombasAtivas.length) ? `<p>Esta unidade ainda não tem tanque ou bomba ativa cadastrada. Fale com o administrador do sistema.</p>` : ""}
+  `;
+  const anexosFisico = {};
+  tanques.forEach(t=>{
+    wireUploadBox(`afPubFotoBox-${t.id}`, `afPubFoto-${t.id}`, f=>{ anexosFisico[t.id] = f; });
+  });
+  const btnFisico = document.getElementById("afPubSalvarFisico");
+  if(btnFisico){
+    btnFisico.addEventListener("click", async ()=>{
+      const data = document.getElementById("afPubData").value;
+      if(!data){ showToast("Informe a data da leitura."); return; }
+      const alvos = tanques.filter(t=>document.getElementById(`afPubFisico-${t.id}`).value!=="");
+      if(!alvos.length){ showToast("Informe o saldo físico de pelo menos um tanque."); return; }
+      btnFisico.disabled = true;
+      for(const t of alvos){
+        const fisico = Number(document.getElementById(`afPubFisico-${t.id}`).value);
+        let fotoAssetId = null;
+        if(assetsNs && anexosFisico[t.id]){
+          try{ const r = await assetsNs.upload(anexosFisico[t.id]); fotoAssetId = r.id; }
+          catch(e){ console.error("[saldo] falha ao enviar foto da régua (link público):", e); }
+        }
+        // mescla com um lançamento já existente nesse tanque/data (se a Controladoria já
+        // tiver lançado Abastecimento pra esse dia) — o link público só atualiza o saldo
+        // físico e a foto, nunca apaga Entrada/Saída de Abastecimento já lançada.
+        let existente = null;
+        try{
+          const edoc = await dbNs.doc("lancamentos/"+(t.id+"__"+data)).get();
+          if(edoc && edoc.exists) existente = edoc.data();
+        }catch(e){ /* segue sem mesclar */ }
+        const l = existente
+          ? { ...existente, saldoFisico: fisico, fotoAssetId: fotoAssetId || existente.fotoAssetId || null }
+          : { id: t.id+"__"+data, unidadeId:u.id, tanqueId:t.id, produto:t.produto, data,
+              abEntrada:0, abSaida:0, saldoFisico:fisico,
+              printAssetId:null, fotoAssetId, obs:"Registrado via link de aferição.", exemplo:false };
+        await saveLancamento(l);
+      }
+      btnFisico.disabled = false;
+      showToast(`Saldo físico registrado para ${alvos.length} tanque(s). Obrigado!`);
+      tanques.forEach(t=>{ const inp = document.getElementById(`afPubFisico-${t.id}`); if(inp) inp.value=""; });
+    });
+  }
+  body.querySelectorAll("[data-af-pub-bomba]").forEach(btn=>{
+    btn.addEventListener("click", ()=>openNovaAfericaoBomba(u.id, btn.dataset.afPubBomba));
+  });
+}
+
 /* ===================== Wire up ===================== */
 document.getElementById("loginForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
@@ -4099,8 +4282,14 @@ document.getElementById("afMesHoje").addEventListener("click", ()=>{
 document.getElementById("appBuild").textContent = APP_BUILD;
 initTheme();
 initLogoPadrao();
-restoreSession();
-if(session){ enterApp(); }
+const afParam = new URLSearchParams(location.search).get("af");
+const afDotIdx = afParam ? afParam.indexOf(".") : -1;
+if(afParam && afDotIdx>0){
+  initPublicAfericao(afParam.slice(0,afDotIdx), afParam.slice(afDotIdx+1));
+} else {
+  restoreSession();
+  if(session){ enterApp(); }
+}
 
 })();
 </script>
