@@ -320,9 +320,9 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .unit-cell span{color:var(--muted);font-size:12px}
 .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600}
 .afer-urgente{margin-top:5px;font-size:11px;font-weight:700;color:var(--red);white-space:normal;max-width:180px}
-.afer-trend{display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
-.afer-trend svg{display:block;flex:0 0 auto}
-.afer-trend-label{font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.afer-trend{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.afer-trend svg{display:block;width:100%}
+.afer-trend-label{display:inline-block;margin-top:2px;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
 .badge.ok{background:var(--ok-bg);color:var(--ok)}
 .badge.warn{background:var(--warn-bg);color:var(--warn)}
 .badge.bad{background:var(--bad-bg);color:var(--bad)}
@@ -451,6 +451,21 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .pan-legend span{display:inline-flex;align-items:center;gap:5px}
 .pan-filter-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:color-mix(in srgb, var(--teal) 14%, var(--paper));color:var(--teal-ink);font-size:12.5px;font-weight:600;margin-bottom:12px}
 .pan-filter-chip button{background:none;border:0;color:inherit;cursor:pointer;font:inherit;padding:0;text-decoration:underline}
+.pan-city-dot{cursor:pointer}
+.pan-city-dot circle{stroke:#fff;stroke-width:1}
+.pan-city-dot.bad circle{animation:pulseCity 1.6s ease-in-out infinite}
+@keyframes pulseCity{0%,100%{r:4.2px}50%{r:5.6px}}
+#panCidadesExpand{margin-top:10px}
+.pan-city-list{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);animation:fadeIn .15s ease}
+.pan-city-list .pcl-title{font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:2px}
+.pan-city-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;padding:4px 6px;border-radius:6px}
+.pan-city-row.destaque{background:color-mix(in srgb, var(--bad) 10%, transparent);font-weight:600}
+.pan-city-row .name{display:flex;align-items:center;gap:7px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
+.pan-resumo{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.pan-resumo strong{font-size:12.5px;display:block;margin-bottom:6px}
+.pan-resumo-grid{display:grid;gap:5px;font-size:12px;color:var(--muted);line-height:1.5}
+.pan-resumo-grid .dot{margin-right:2px}
 .pan-donut-wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .pan-donut-legend{display:grid;gap:7px;font-size:12.5px}
 .pan-donut-legend .row{display:flex;align-items:center;gap:7px}
@@ -536,6 +551,17 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .afer-pct-bomba{font-size:11.5px;font-weight:700;color:var(--teal-ink)}
 .afer-prazo-label{font-size:10px;font-weight:700;letter-spacing:.02em;color:var(--teal-ink);text-transform:uppercase}
 .afer-cell.bad .afer-prazo-label{color:var(--bad)}
+.afer-cell.feriado{border-style:dashed;border-color:var(--teal)}
+.afer-feriado-label{font-size:9.5px;font-weight:700;color:var(--teal-ink);display:flex;align-items:center;gap:3px}
+.feriados-box{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.feriados-box .fer-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.feriados-box .fer-head h4{margin:0;font-size:13px}
+.fer-list{display:flex;flex-direction:column;gap:4px;font-size:12.5px;margin-bottom:8px}
+.fer-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:7px;background:var(--bg);border:1px solid var(--line)}
+.fer-row .tag{font-size:10.5px;color:var(--muted)}
+.fer-row button{background:none;border:0;color:var(--bad);cursor:pointer;font-size:12px}
+.fer-add-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.fer-add-row input, .fer-add-row select{font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink)}
 @media (max-width:640px){
   .afer-calendar{gap:5px}
   .afer-cell{min-height:56px;padding:6px;border-radius:7px}
@@ -771,8 +797,21 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       </div>
       <div class="pan-grid">
         <div class="pan-card">
-          <h3>Mapa por estado</h3>
+          <h3>Mapa por estado e cidade</h3>
           <div id="panMapWrap"></div>
+          <div id="panCidadesExpand"></div>
+          <div class="pan-resumo">
+            <strong>Resumo — o que cada coisa significa</strong>
+            <div class="pan-resumo-grid">
+              <div><span class="dot ok"></span> <b>Conciliado</b> — saldo físico e calculado praticamente iguais (dentro da margem de 1%).</div>
+              <div><span class="dot warn"></span> <b>Fora do limite</b> — diferença entre 1% e 3% do tanque; acompanhar.</div>
+              <div><span class="dot bad"></span> <b>Divergente</b> — diferença maior que 3% do tanque; requer ação.</div>
+              <div><span class="dot pend"></span> <b>Aguardando físico</b> — ainda não foi lançada a aferição física do período.</div>
+              <div><span class="dot" style="background:var(--line)"></span> <b>Sem lançamento</b> — nenhum dado lançado no período avaliado.</div>
+              <div><b>% do tanque</b> — a diferença (físico vs. calculado) expressa como percentual da capacidade do tanque; é essa % que define se o status é conciliado, fora do limite ou divergente.</div>
+              <div><b>Pontos no mapa</b> — cada ponto é uma cidade com unidade cadastrada; a cor segue o status da cidade. Clique no estado para ver a lista completa das cidades.</div>
+            </div>
+          </div>
         </div>
         <div class="pan-card">
           <h3>Composição por status</h3>
@@ -959,6 +998,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
           <div class="afer-weekday">Sáb</div>
         </div>
         <div class="afer-calendar" id="afCalendar"></div>
+        <div class="feriados-box" id="feriadosBox"></div>
       </div>
 
       <div class="boletim" style="margin-top:20px">
@@ -1191,7 +1231,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-27-v53";
+const APP_BUILD = "2026-10-27-v54";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1274,6 +1314,10 @@ async function initData(){
     try{
       const cgDoc = await dbNs.doc("config/geral").get();
       if(cgDoc && cgDoc.exists && cgDoc.data()) configGeral = Object.assign({logoPadraoDataUrl:null}, cgDoc.data());
+      if(!configGeral.feriadosMunicipais){
+        configGeral = Object.assign({}, configGeral, { feriadosMunicipais: FERIADOS_MUNICIPAIS_SEED.slice() });
+        try{ await dbNs.doc("config/geral").set(configGeral); }catch(e2){}
+      }
     }catch(e){ /* config geral é opcional — segue com o padrão */ }
     showDbWarning(null);
   }catch(e){
@@ -1375,11 +1419,11 @@ function bombaAferidaNaJanela(bombaId, janela){
 }
 // mesmo ciclo quinzenal usado na aferição de saldo físico (janelaAtual), mas cobrando
 // a aferição de precisão do bico de cada bomba, não a leitura de régua do tanque
-function proximaAfericaoBomba(bomba){
+function proximaAfericaoBomba(bomba, unidade){
   const todas = afericoesDaBomba(bomba.id);
   const ultima = todas.length ? todas[todas.length-1].data : null;
   const hoje = dstr(new Date());
-  const janela = janelaAtual(hoje);
+  const janela = janelaAtual(hoje, unidade && unidade.estado, unidade && unidade.nome);
   const aferidaNaJanela = bombaAferidaNaJanela(bomba.id, janela);
   const fimDate = new Date(janela.fim+"T00:00:00Z");
   const diffDias = Math.round((fimDate - new Date(hoje+"T00:00:00Z"))/86400000);
@@ -1726,18 +1770,140 @@ const STATUS_RANK = {bad:3, warn:2, pend:1, ok:0};
 const AVISO_AFERICAO_DIAS = 5;
 function pad2(n){ return String(n).padStart(2,"0"); }
 function isoYMD(y,m,d){ return `${y}-${pad2(m)}-${pad2(d)}`; }
-function janelaAtual(hojeIso){
+
+/* ---- Feriados: nacionais (calculados) + estaduais/municipais (lista editável) ----
+   Usados para (a) mostrar no calendário de aferição e (b) empurrar o prazo da
+   quinzena para o próximo dia quando o vencimento (dia 10 ou fim do mês) cair
+   em feriado. Carnaval/Corpus Christi são ponto facultativo — aparecem no
+   calendário mas NÃO empurram o prazo (não é feriado obrigatório). */
+const FERIADOS_MUNICIPAIS_SEED = [
+  { uf:"BA", cidades:["Ilhéus"], mes:6, dia:28, nome:"Dia do Município" },
+  { uf:"BA", cidades:["Itabuna"], mes:7, dia:28, nome:"Emancipação política" },
+  { uf:"BA", cidades:["Juazeiro"], mes:7, dia:15, nome:"Emancipação política" },
+  { uf:"BA", cidades:["Paulo Afonso"], mes:7, dia:28, nome:"Emancipação política" },
+  { uf:"BA", cidades:["Vitória da Conquista"], mes:11, dia:9, nome:"Aniversário da cidade" },
+  { uf:"BA", cidades:["Camaçari"], mes:9, dia:28, nome:"Emancipação política" },
+  { uf:"BA", cidades:["Lauro de Freitas"], mes:7, dia:31, nome:"Emancipação política (confirmar data)" },
+  { uf:"BA", cidades:["Salvador","SSA Iguatemi"], mes:6, dia:24, nome:"São João" },
+  { uf:"BA", cidades:["Salvador","SSA Iguatemi"], mes:12, dia:8, nome:"N. Sra. da Conceição da Praia" },
+  { uf:"SE", cidades:["Aracaju"], mes:3, dia:17, nome:"Aniversário da cidade" },
+  { uf:"PE", cidades:["Petrolina"], mes:9, dia:21, nome:"Emancipação política" },
+];
+function pascoaISO(ano){
+  // algoritmo de Gauss (calendário gregoriano)
+  const a=ano%19, b=Math.floor(ano/100), c=ano%100, d=Math.floor(b/4), e=b%4;
+  const f=Math.floor((b+8)/25), g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7;
+  const m=Math.floor((a+11*h+22*l)/451);
+  const mes=Math.floor((h+l-7*m+114)/31), dia=((h+l-7*m+114)%31)+1;
+  return new Date(Date.UTC(ano, mes-1, dia));
+}
+function addDiasISO(dateUtc, n){ const d=new Date(dateUtc.getTime()); d.setUTCDate(d.getUTCDate()+n); return dstr(d); }
+function feriadosNacionais(ano){
+  const pascoa = pascoaISO(ano);
+  const lst = [
+    { data: isoYMD(ano,1,1), nome:"Confraternização Universal", obrigatorio:true },
+    { data: isoYMD(ano,4,21), nome:"Tiradentes", obrigatorio:true },
+    { data: isoYMD(ano,5,1), nome:"Dia do Trabalho", obrigatorio:true },
+    { data: isoYMD(ano,9,7), nome:"Independência do Brasil", obrigatorio:true },
+    { data: isoYMD(ano,10,12), nome:"Nossa Senhora Aparecida", obrigatorio:true },
+    { data: isoYMD(ano,11,2), nome:"Finados", obrigatorio:true },
+    { data: isoYMD(ano,11,15), nome:"Proclamação da República", obrigatorio:true },
+    { data: isoYMD(ano,11,20), nome:"Dia Nacional de Zumbi e da Consciência Negra", obrigatorio:true },
+    { data: isoYMD(ano,12,25), nome:"Natal", obrigatorio:true },
+    { data: addDiasISO(pascoa,-2), nome:"Sexta-feira Santa", obrigatorio:true },
+    { data: addDiasISO(pascoa,-48), nome:"Carnaval (segunda)", obrigatorio:false },
+    { data: addDiasISO(pascoa,-47), nome:"Carnaval (terça)", obrigatorio:false },
+    { data: addDiasISO(pascoa,60), nome:"Corpus Christi", obrigatorio:false },
+  ];
+  return lst;
+}
+function feriadoCustomMatch(f, uf, cidade){
+  if(f.uf!==uf) return false;
+  if(!f.cidades) return true; // aplica à UF toda
+  return cidade && f.cidades.some(c=>c.toLowerCase()===String(cidade).toLowerCase());
+}
+function feriadosDoDia(dataIso, uf, cidade){
+  const ano = Number(dataIso.slice(0,4));
+  const achados = [];
+  feriadosNacionais(ano).forEach(f=>{ if(f.data===dataIso) achados.push(f); });
+  const custom = (configGeral.feriadosMunicipais || FERIADOS_MUNICIPAIS_SEED);
+  custom.forEach(f=>{
+    if(!uf || !feriadoCustomMatch(f, uf, cidade)) return;
+    if(dataIso === isoYMD(ano, f.mes, f.dia)) achados.push({ data: dataIso, nome: f.nome, obrigatorio:true });
+  });
+  return achados;
+}
+function isFeriadoObrigatorio(dataIso, uf, cidade){
+  return feriadosDoDia(dataIso, uf, cidade).some(f=>f.obrigatorio!==false);
+}
+function empurrarSeFeriado(dataIso, uf, cidade){
+  let d = dataIso, guard=0;
+  while(uf && isFeriadoObrigatorio(d, uf, cidade) && guard<10){ d = addDiasISO(new Date(d+"T00:00:00Z"),1); guard++; }
+  return d;
+}
+async function salvarFeriadosMunicipais(lista){
+  configGeral = Object.assign({}, configGeral, { feriadosMunicipais: lista });
+  if(!dbAvailable || !dbNs){ showToast("Sem conexão com o banco — alterado só nesta sessão."); return; }
+  try{ await dbNs.doc("config/geral").set(configGeral); }
+  catch(e){ showToast("Não foi possível salvar no servidor."); }
+}
+function renderFeriadosBox(u){
+  const box = document.getElementById("feriadosBox");
+  if(!box) return;
+  if(session.role!=="admin"){ box.innerHTML = ""; return; }
+  const lista = configGeral.feriadosMunicipais || FERIADOS_MUNICIPAIS_SEED;
+  const estadosUsados = [...new Set(unidades.map(x=>x.estado))].sort();
+  const rows = lista.map((f,i)=>`<div class="fer-row">
+      <span>${f.cidades?f.cidades.join("/"):f.uf+" (todo o estado)"} — ${pad2(f.dia)}/${pad2(f.mes)} <span class="tag">${f.nome}</span></span>
+      <button type="button" data-fer-del="${i}" title="Remover">remover</button>
+    </div>`).join("") || `<p class="muted" style="font-size:12.5px">Nenhum feriado municipal cadastrado.</p>`;
+  box.innerHTML = `<div class="fer-head"><h4>Feriados municipais/estaduais (além dos nacionais, já exibidos no calendário)</h4></div>
+    <div class="fer-list">${rows}</div>
+    <div class="fer-add-row">
+      <select id="ferUf">${estadosUsados.map(uf=>`<option value="${uf}">${uf}</option>`).join("")}</select>
+      <input id="ferCidade" placeholder="Cidade (em branco = todo o estado)" style="min-width:200px">
+      <input id="ferDia" type="number" min="1" max="31" placeholder="Dia" style="width:60px">
+      <input id="ferMes" type="number" min="1" max="12" placeholder="Mês" style="width:60px">
+      <input id="ferNome" placeholder="Nome do feriado" style="min-width:160px">
+      <button type="button" class="btn btn-ghost" id="ferAdd">+ Adicionar</button>
+    </div>`;
+  box.querySelectorAll("[data-fer-del]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const idx = Number(btn.dataset.ferDel);
+      const nova = lista.slice(); nova.splice(idx,1);
+      await salvarFeriadosMunicipais(nova);
+      renderFeriadosBox(u); renderAfericao();
+    });
+  });
+  const addBtn = document.getElementById("ferAdd");
+  if(addBtn) addBtn.addEventListener("click", async ()=>{
+    const uf = document.getElementById("ferUf").value;
+    const cidade = document.getElementById("ferCidade").value.trim();
+    const dia = Number(document.getElementById("ferDia").value);
+    const mes = Number(document.getElementById("ferMes").value);
+    const nome = document.getElementById("ferNome").value.trim() || "Feriado municipal";
+    if(!uf || !dia || !mes){ showToast("Informe UF, dia e mês."); return; }
+    const nova = lista.concat([{ uf, cidades: cidade?[cidade]:null, dia, mes, nome }]);
+    await salvarFeriadosMunicipais(nova);
+    renderFeriadosBox(u); renderAfericao();
+  });
+}
+function janelaAtual(hojeIso, uf, cidade){
   const [y,m,d] = hojeIso.split("-").map(Number);
   const ultimoDia = new Date(Date.UTC(y, m, 0)).getUTCDate();
   if(d<=10){
-    return { ano:y, mes:m, numero:1, inicio: isoYMD(y,m,1), fim: isoYMD(y,m,10), ativa:true,
+    const fim = empurrarSeFeriado(isoYMD(y,m,10), uf, cidade);
+    return { ano:y, mes:m, numero:1, inicio: isoYMD(y,m,1), fim, ativa:true,
       label:`1ª quinzena (1 a 10/${pad2(m)})` };
   }
   if(d<=19){
-    return { ano:y, mes:m, numero:1, inicio: isoYMD(y,m,1), fim: isoYMD(y,m,10), ativa:false,
+    const fim = empurrarSeFeriado(isoYMD(y,m,10), uf, cidade);
+    return { ano:y, mes:m, numero:1, inicio: isoYMD(y,m,1), fim, ativa:false,
       label:`1ª quinzena (1 a 10/${pad2(m)})` };
   }
-  return { ano:y, mes:m, numero:2, inicio: isoYMD(y,m,20), fim: isoYMD(y,m,ultimoDia), ativa:true,
+  const fim = empurrarSeFeriado(isoYMD(y,m,ultimoDia), uf, cidade);
+  return { ano:y, mes:m, numero:2, inicio: isoYMD(y,m,20), fim, ativa:true,
     label:`2ª quinzena (20 a ${ultimoDia}/${pad2(m)})` };
 }
 function tanqueAferidoNaJanela(tanque, janela){
@@ -1750,11 +1916,12 @@ function unidadeAferidaNaJanela(unidade, janela){
   if(!tanquesAtivos.length) return null; // sem tanque ativo, não se aplica
   return tanquesAtivos.every(t=>tanqueAferidoNaJanela(t, janela));
 }
-function proximaAfericao(tanque){
+function proximaAfericao(tanque, unidade){
   const comFisico = lancamentosDoTanque(tanque.id).filter(l=>l.saldoFisico!==null && l.saldoFisico!==undefined);
   const ultima = comFisico.length ? comFisico[comFisico.length-1].data : null;
   const hoje = dstr(new Date());
-  const janela = janelaAtual(hoje);
+  const u2 = unidade || unidades.find(x=>x.tanques && x.tanques.some(t=>t.id===tanque.id));
+  const janela = janelaAtual(hoje, u2 && u2.estado, u2 && u2.nome);
   const aferidaNaJanela = tanqueAferidoNaJanela(tanque, janela);
   const fimDate = new Date(janela.fim+"T00:00:00Z");
   const diffDias = Math.round((fimDate - new Date(hoje+"T00:00:00Z"))/86400000);
@@ -1793,7 +1960,7 @@ function unidadeSummary(u, grupos){
     if(pior===null || STATUS_RANK[ultimo.cls.status] > STATUS_RANK[pior]) pior = ultimo.cls.status;
     if(ultimaData===null || ultimo.data > ultimaData) ultimaData = ultimo.data;
   });
-  const tanques = u.tanques.map(t=>({ t, oc: ocupacao(t.capacidade, saldoAtualTanque(t)), af: proximaAfericao(t) }));
+  const tanques = u.tanques.map(t=>({ t, oc: ocupacao(t.capacidade, saldoAtualTanque(t)), af: proximaAfericao(t, u) }));
   let piorAfericao = null;
   // tanque desativado não entra na cobrança de aferição (continua aparecendo na lista acima, com a ocupação atual)
   tanques.filter(x=>tanqueAtivo(x.t)).forEach(x=>{ if(piorAfericao===null || STATUS_RANK[x.af.status]>STATUS_RANK[piorAfericao]) piorAfericao = x.af.status; });
@@ -1819,7 +1986,6 @@ function ufAgregado(summaries){
 function renderPanMapa(summaries){
   const wrap = document.getElementById("panMapWrap");
   const porUF = ufAgregado(summaries);
-  const maxQtd = Math.max(1, ...[...porUF.values()].map(r=>r.qtd));
   const paths = BR_MAP.map(s=>{
     const r = porUF.get(s.i);
     const cor = r ? PANO_STATUS_VARCOLOR[r.pior] : "var(--bg)";
@@ -1827,7 +1993,7 @@ function renderPanMapa(summaries){
     const label = r ? `${s.n}: ${r.qtd} unidade(s) · ${PANO_STATUS_LABEL[r.pior]}` : `${s.n}: sem unidade cadastrada`;
     return `<path d="${s.p}" data-uf="${s.i}" class="uf${panoUFFiltro===s.i?' sel':''}" style="fill:${cor}" tabindex="${interativo?0:-1}" aria-label="${label}"><title>${label}</title></path>`;
   }).join("");
-  wrap.innerHTML = `<svg class="pan-map" viewBox="${BR_VB}" role="img" aria-label="Mapa do Brasil por status das unidades">${paths}</svg>
+  wrap.innerHTML = `<svg class="pan-map" id="panMapSvg" viewBox="${BR_VB}" role="img" aria-label="Mapa do Brasil por status das unidades e cidades">${paths}<g id="panCityDots"></g></svg>
     <div class="pan-legend">
       <span><span class="dot ok"></span>Conciliado</span>
       <span><span class="dot warn"></span>Fora do limite</span>
@@ -1835,13 +2001,57 @@ function renderPanMapa(summaries){
       <span><span class="dot pend"></span>Aguardando físico</span>
       <span><span class="dot" style="background:var(--line)"></span>Sem lançamento</span>
     </div>`;
-  wrap.querySelectorAll(".uf[tabindex='0']").forEach(path=>{
-    path.addEventListener("click", ()=>{
-      const uf = path.dataset.uf;
+  // pontos aproximados por cidade: agrupa as unidades de cada UF em torno do centro geométrico do estado no mapa
+  const dotsG = wrap.querySelector("#panCityDots");
+  const dotsHtml = [];
+  BR_MAP.forEach(s=>{
+    const cidades = summaries.filter(sm=>sm.u.estado===s.i);
+    if(!cidades.length) return;
+    const pathEl = wrap.querySelector(`path[data-uf="${s.i}"]`);
+    let cx=0, cy=0;
+    try{ const bb = pathEl.getBBox(); cx = bb.x + bb.width/2; cy = bb.y + bb.height/2; } catch(e){ return; }
+    const n = cidades.length;
+    cidades.forEach((sm,i)=>{
+      let dx=0, dy=0;
+      if(n>1){
+        const ang = (2*Math.PI*i/n) - Math.PI/2;
+        const raio = Math.min(14, 5 + n*1.4);
+        dx = raio*Math.cos(ang); dy = raio*Math.sin(ang);
+      }
+      const st = sm.status || "sem";
+      const cor = PANO_STATUS_VARCOLOR[st];
+      dotsHtml.push(`<g class="pan-city-dot ${st}" data-uf="${s.i}" tabindex="0" aria-label="${sm.u.nome}: ${PANO_STATUS_LABEL[st]}">
+        <circle cx="${(cx+dx).toFixed(1)}" cy="${(cy+dy).toFixed(1)}" r="4.2" fill="${cor}"><title>${sm.u.nome} (${s.n}) — ${PANO_STATUS_LABEL[st]}</title></circle>
+      </g>`);
+    });
+  });
+  dotsG.innerHTML = dotsHtml.join("");
+  wrap.querySelectorAll(".uf[tabindex='0'], .pan-city-dot").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      const uf = el.dataset.uf;
       panoUFFiltro = panoUFFiltro===uf ? null : uf;
       renderPanorama();
     });
   });
+  renderPanCidadesExpand(summaries);
+}
+function renderPanCidadesExpand(summariesTodas){
+  const el = document.getElementById("panCidadesExpand");
+  if(!panoUFFiltro){ el.innerHTML = ""; return; }
+  const cidades = summariesTodas.filter(s=>s.u.estado===panoUFFiltro).sort((a,b)=>{
+    const ra = STATUS_RANK[a.status]||0, rb = STATUS_RANK[b.status]||0;
+    return rb-ra || a.u.nome.localeCompare(b.u.nome);
+  });
+  if(!cidades.length){ el.innerHTML = ""; return; }
+  const rows = cidades.map(s=>{
+    const st = s.status || "sem";
+    const destaque = st==="bad" || st==="warn";
+    return `<div class="pan-city-row${destaque?' destaque':''}">
+      <span class="name"><span class="dot ${st}" ${st==='sem'?'style="background:var(--line)"':''}></span>${s.u.nome}</span>
+      <span class="muted">${PANO_STATUS_LABEL[st]}</span>
+    </div>`;
+  }).join("");
+  el.innerHTML = `<div class="pan-city-list"><div class="pcl-title">Cidades em ${UF_NOME_BR[panoUFFiltro]||panoUFFiltro} (${cidades.length}) — divergentes/fora do limite destacadas</div>${rows}</div>`;
 }
 function pieSlicePath(cx,cy,r,a0,a1){
   const x0 = cx + r*Math.cos(a0), y0 = cy + r*Math.sin(a0);
@@ -1976,28 +2186,65 @@ function buildSmoothPath(xs, ys){
   }
   return d;
 }
-// mini-gráfico de linha suavizada com a tendência da diferença (saldo calculado x físico)
-// do tanque nas últimas leituras — ajuda a ver visualmente se está piorando
-function diffTrendSvg(tanque){
-  const ls = lancamentosDoTanque(tanque.id).filter(l=>l.saldoFisico!==null && l.saldoFisico!==undefined);
-  if(ls.length<2) return "";
-  const recentes = ls.slice(-10);
-  const vals = recentes.map(l=> saldoAbastecimentoAte(tanque, l.data) - l.saldoFisico);
-  const w=100, h=100, padX=4, padY=6;
+// dados da tendência da diferença (saldo calculado x físico) do tanque nas últimas leituras —
+// compartilhado entre o gráfico da tela (SVG) e o gráfico embutido no PDF (canvas do pdfmake)
+function diffTrendData(tanque, max, listaLancamentos){
+  const base = listaLancamentos || lancamentos;
+  const doTanque = base.filter(l=>l.tanqueId===tanque.id).sort((a,b)=>a.data<b.data?-1:1);
+  const ls = doTanque.filter(l=>l.saldoFisico!==null && l.saldoFisico!==undefined);
+  if(ls.length<2) return null;
+  const calcAte = (dataLimite)=>{
+    let s = tanque.saldoInicial;
+    for(const l of doTanque){ if(l.data>dataLimite) break; s += (l.abEntrada||0)-(l.abSaida||0); }
+    return s;
+  };
+  const recentes = ls.slice(-(max||8));
+  const vals = recentes.map(l=> calcAte(l.data) - l.saldoFisico);
+  const datas = recentes.map(l=>l.data);
+  return { vals, datas, n: vals.length };
+}
+// gráfico de linha suavizada (área com gradiente, marcadores circulares, rótulo no último
+// ponto, datas no eixo x) — estilo do modelo de referência do dashboard de suporte, em tons
+// de azul/teal (sem laranja/amarelo); mostra a tendência da diferença nas últimas leituras.
+function diffTrendSvg(tanque, listaLancamentos){
+  const d = diffTrendData(tanque, 8, listaLancamentos);
+  if(!d) return "";
+  const { vals, datas, n } = d;
+  const w=320, h=120, padX=14, padT=22, padB=20;
   const maxAbs = Math.max(2.5, ...vals.map(v=>Math.abs(v)));
-  const n = vals.length;
+  const zeroY = padT + (h-padT-padB)/2;
+  const ampl = (h-padT-padB)/2 - 4;
   const xs = vals.map((_,i)=> n>1 ? padX + i*((w-2*padX)/(n-1)) : w/2);
-  const ys = vals.map(v=> h/2 - (v/maxAbs)*(h/2-padY));
+  const ys = vals.map(v=> zeroY - (v/maxAbs)*ampl);
   const path = buildSmoothPath(xs, ys);
-  const ultimo = vals[vals.length-1];
+  const areaPath = `${path} L ${xs[n-1].toFixed(1)},${zeroY.toFixed(1)} L ${xs[0].toFixed(1)},${zeroY.toFixed(1)} Z`;
+  const ultimo = vals[n-1];
   const urgente = Math.abs(ultimo) > 2.5;
-  const cor = urgente ? "var(--red)" : (Math.abs(ultimo) > 1 ? "var(--warn)" : "var(--teal)");
-  return `<div class="afer-trend" title="Tendência da diferença (últimas ${n} leituras) — ${(ultimo>=0?"+":"")}${fmtLFino(ultimo)} na mais recente">
-    <svg viewBox="0 0 ${w} ${h}" width="${w}" height="34" preserveAspectRatio="none">
-      <line x1="0" y1="${h/2}" x2="${w}" y2="${h/2}" stroke="var(--line)" stroke-width="1" vector-effect="non-scaling-stroke"/>
-      <path d="${path}" fill="none" stroke="${cor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+  const gid = "tg"+tanque.id.replace(/[^a-zA-Z0-9]/g,"");
+  const pontos = xs.map((x,i)=>{
+    const isLast = i===n-1;
+    const r = isLast ? 4 : 2.6;
+    return `<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="${r}" fill="${isLast?'var(--teal)':'var(--paper)'}" stroke="var(--teal)" stroke-width="1.6"/>`;
+  }).join("");
+  const labelY = ys[n-1] - 10 < padT ? ys[n-1]+16 : ys[n-1]-10;
+  const datasLabels = datas.map((dt,i)=>{
+    if(n>6 && i%2!==0 && i!==n-1) return "";
+    return `<text x="${xs[i].toFixed(1)}" y="${h-4}" text-anchor="middle" font-size="7.5" fill="var(--muted)">${dt.slice(8,10)}/${dt.slice(5,7)}</text>`;
+  }).join("");
+  return `<div class="afer-trend" title="Tendência da diferença (últimas ${n} leituras)">
+    <svg viewBox="0 0 ${w} ${h}" width="100%" height="100" preserveAspectRatio="none">
+      <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--teal)" stop-opacity="0.32"/>
+        <stop offset="100%" stop-color="var(--teal)" stop-opacity="0.02"/>
+      </linearGradient></defs>
+      <line x1="${padX}" y1="${zeroY}" x2="${w-padX}" y2="${zeroY}" stroke="var(--line)" stroke-width="1" stroke-dasharray="3,3"/>
+      <path d="${areaPath}" fill="url(#${gid})" stroke="none"/>
+      <path d="${path}" fill="none" stroke="var(--teal)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      ${pontos}
+      <text x="${(xs[n-1]-2).toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="end" font-size="10" font-weight="700" fill="var(--teal-ink)">${(ultimo>=0?"+":"")}${fmtLFino(ultimo)}</text>
+      ${datasLabels}
     </svg>
-    <span class="afer-trend-label" style="color:${cor}">${(ultimo>=0?"+":"")}${fmtLFino(ultimo)}</span>
+    ${urgente?`<span class="afer-trend-label" style="color:var(--red)">⚠ acima de 2,5 l</span>`:""}
   </div>`;
 }
 function afericoesDoMes(unidadeId, mes){
@@ -2080,7 +2327,7 @@ function renderAfericao(){
     vencWrap.innerHTML = `<p class="muted">${u ? "Esta unidade ainda não tem tanque cadastrado." : "Cadastre uma unidade primeiro."}</p>`;
   } else {
     vencWrap.innerHTML = u.tanques.map(t=>{
-      const af = proximaAfericao(t);
+      const af = proximaAfericao(t, u);
       return `<div class="unit-card" style="margin-bottom:8px">
         <div class="unit-card-head">
           <div>
@@ -2106,7 +2353,7 @@ function renderAfericao(){
       bombaWrap.innerHTML = `<p class="muted">Esta unidade ainda não tem bomba cadastrada. Cadastre em Cadastro → ${u.nome} → "+ Adicionar bomba".</p>`;
     } else {
       bombaWrap.innerHTML = bombasAtivasU.map(b=>{
-        const af = proximaAfericaoBomba(b);
+        const af = proximaAfericaoBomba(b, u);
         const nomesTanques = tanquesDaBomba(u,b).map(t=>t.numero).join(", ")||"—";
         return `<div class="unit-card" style="margin-bottom:8px">
           <div class="unit-card-head">
@@ -2186,8 +2433,8 @@ function renderAfericao(){
     const hojeIso = dstr(new Date());
     // janelas quinzenais que caem dentro do mês exibido, com seus dias de prazo (10 e fim do mês)
     const janelasMes = [
-      { inicio: isoYMD(y,m,1), fim: isoYMD(y,m,10) },
-      { inicio: isoYMD(y,m,20), fim: isoYMD(y,m,daysInMonth) },
+      { inicio: isoYMD(y,m,1), fim: empurrarSeFeriado(isoYMD(y,m,10), u&&u.estado, u&&u.nome) },
+      { inicio: isoYMD(y,m,20), fim: empurrarSeFeriado(isoYMD(y,m,daysInMonth), u&&u.estado, u&&u.nome) },
     ];
     const bombasAtivasU = u ? bombasDaUnidade(u).filter(bombaAtiva) : [];
     const diasPrazo = new Map(); // dia -> "due" (prazo em curso, ainda falta aferir) | "bad" (venceu sem aferir)
@@ -2211,16 +2458,18 @@ function renderAfericao(){
       const dataCel = isoYMD(y,m,d);
       const ehHoje = dataCel===hojeIso;
       const prazo = diasPrazo.get(d);
+      const feriadosDia = feriadosDoDia(dataCel, u&&u.estado, u&&u.nome);
       let classeStatus = "";
       if(prazo==="bad") classeStatus = "bad";
       else if(a) classeStatus = a.status;
       else if(ab) classeStatus = ab.status;
-      cells += `<div class="afer-cell ${classeStatus}${ehHoje?" today":""}${prazo==="due"?" due":""}" data-day="${d}">
+      cells += `<div class="afer-cell ${classeStatus}${ehHoje?" today":""}${prazo==="due"?" due":""}${feriadosDia.length?" feriado":""}" data-day="${d}">
         <span class="afer-daynum">${d}</span>
         <span class="afer-badges">
           ${a ? `<span class="afer-pct">${fmtPct.format(a.pct)}%</span>` : ""}
           ${ab ? `<span class="afer-pct afer-pct-bomba" title="Aferição de bomba">⛽ ${(ab.diferencaMedia>=0?"+":"")}${fmtLFino(ab.diferencaMedia)}</span>` : ""}
           ${prazo ? `<span class="afer-prazo-label">${prazo==="bad"?"Prazo vencido":"Prazo da quinzena"}</span>` : ""}
+          ${feriadosDia.length ? `<span class="afer-feriado-label" title="${feriadosDia.map(f=>f.nome).join(', ')}">📅 ${feriadosDia[0].nome}</span>` : ""}
         </span>
       </div>`;
     }
@@ -2237,6 +2486,7 @@ function renderAfericao(){
     calWrap.innerHTML = "";
   }
   document.getElementById("afCalLegend").textContent = u ? `${u.nome} · ${afer.length} aferição(ões) de saldo físico · ${(u?afericoesBomba.filter(a=>a.unidadeId===u.id && a.data.startsWith(mes)):[]).length} de bomba no mês` : (unidades.length ? "" : "Cadastre uma unidade primeiro");
+  renderFeriadosBox(u);
 
   // ---- tabela do mês ----
   const tbody = document.getElementById("afTbody");
@@ -2437,7 +2687,80 @@ function marcaParaSelecao(lista){
 // os mesmos helpers de PDF dos relatórios (pdfHeaderContent/pdfStyledTable/pdfDoc), e a
 // marca (Atlântico ou a logo própria da unidade, ex: BOA VISTA) vem do mesmo mecanismo
 // de "marca por unidade" já usado nos relatórios (marcaParaSelecao).
-function gerarComprovantePdf(c, u){
+// baixa um asset (foto/anexo) e devolve um data URL só se for imagem (pdfmake só embute
+// imagem — pdf/vídeo continuam listados como link/anexo, sem pré-visualização)
+async function urlParaImagemDataUrl(url){
+  if(!url) return null;
+  try{
+    const resp = await fetch(url);
+    if(!resp.ok) return null;
+    const blob = await resp.blob();
+    if(!/^image\//.test(blob.type)) return null;
+    return await new Promise((resolve)=>{
+      const fr = new FileReader();
+      fr.onload = ()=>resolve(fr.result);
+      fr.onerror = ()=>resolve(null);
+      fr.readAsDataURL(blob);
+    });
+  }catch(e){ console.error("[saldo] falha ao carregar anexo para o PDF:", e); return null; }
+}
+function sampleSmoothCurve(xs, ys, perSeg){
+  perSeg = perSeg||12;
+  if(xs.length<2) return xs.map((x,i)=>({x,y:ys[i]}));
+  const pts = [{x:xs[0], y:ys[0]}];
+  for(let i=0;i<xs.length-1;i++){
+    const x0=i>0?xs[i-1]:xs[i], y0=i>0?ys[i-1]:ys[i];
+    const x1=xs[i], y1=ys[i], x2=xs[i+1], y2=ys[i+1];
+    const x3=i+2<xs.length?xs[i+2]:x2, y3=i+2<xs.length?ys[i+2]:y2;
+    const c1x=x1+(x2-x0)/6, c1y=y1+(y2-y0)/6;
+    const c2x=x2-(x3-x1)/6, c2y=y2-(y3-y1)/6;
+    for(let s=1;s<=perSeg;s++){
+      const t=s/perSeg, mt=1-t;
+      pts.push({
+        x: mt*mt*mt*x1 + 3*mt*mt*t*c1x + 3*mt*t*t*c2x + t*t*t*x2,
+        y: mt*mt*mt*y1 + 3*mt*mt*t*c1y + 3*mt*t*t*c2y + t*t*t*y2,
+      });
+    }
+  }
+  return pts;
+}
+// versão do gráfico de tendência (linha suavizada + área em gradiente, em tons de azul/teal)
+// para embutir no PDF, desenhada com os elementos de "canvas" nativos do pdfmake
+function diffTrendPdfContent(tanque, listaLancamentos){
+  const d = diffTrendData(tanque, 8, listaLancamentos);
+  if(!d) return null;
+  const { vals, datas, n } = d;
+  const w=480, h=110, padX=16, padT=10, padB=10;
+  const maxAbs = Math.max(2.5, ...vals.map(v=>Math.abs(v)));
+  const zeroY = padT + (h-padT-padB)/2;
+  const ampl = (h-padT-padB)/2 - 4;
+  const xs = vals.map((_,i)=> n>1 ? padX + i*((w-2*padX)/(n-1)) : w/2);
+  const ys = vals.map(v=> zeroY - (v/maxAbs)*ampl);
+  const curve = sampleSmoothCurve(xs, ys, 14);
+  const areaPts = curve.concat([{x:curve[curve.length-1].x, y:zeroY}, {x:curve[0].x, y:zeroY}]);
+  const canvas = [
+    { type:'line', x1:padX, y1:zeroY, x2:w-padX, y2:zeroY, lineWidth:0.75, lineColor:PDFC.BORDER },
+    { type:'polyline', points:areaPts, closePath:true, color:'#d8ecee', lineWidth:0 },
+    { type:'polyline', points:curve, lineWidth:1.8, lineColor:PDFC.TEAL },
+  ];
+  xs.forEach((x,i)=>{
+    const last = i===n-1;
+    canvas.push({ type:'ellipse', x, y:ys[i], r1:last?3.6:2.1, r2:last?3.6:2.1, color: last?PDFC.TEAL:'#ffffff', lineColor:PDFC.TEAL, lineWidth:1.1 });
+  });
+  const ultimo = vals[n-1];
+  const periodoTxt = `${fmtDate(datas[0])} a ${fmtDate(datas[n-1])}`;
+  return { stack:[
+    { text:`Tanque ${tanque.numero} — tendência da diferença (últimas ${n} leituras, ${periodoTxt})`, fontSize:8.5, color:PDFC.TEAL_DARK, bold:true, margin:[0,0,0,3] },
+    { canvas, margin:[0,0,0,2] },
+    { text:`Diferença mais recente: ${(ultimo>=0?"+":"")}${fmtLFino(ultimo)}${Math.abs(ultimo)>2.5?"  ⚠ acima de 2,5 l":""}`, fontSize:8, color: Math.abs(ultimo)>2.5?PDFC.RED:PDFC.GRAY },
+  ], margin:[0,4,0,12] };
+}
+// comprovante em PDF gerado logo após o envio do link público de aferição — reaproveita
+// os mesmos helpers de PDF dos relatórios (pdfHeaderContent/pdfStyledTable/pdfDoc), e a
+// marca (Atlântico ou a logo própria da unidade, ex: BOA VISTA) vem do mesmo mecanismo
+// de "marca por unidade" já usado nos relatórios (marcaParaSelecao). É assíncrona porque
+// busca as fotos/anexos (régua, bomba, anexo livre) e os embute como imagem no PDF.
+async function gerarComprovantePdf(c, u, listaLancamentos){
   const marca = marcaParaSelecao([u]);
   const content = [];
   content.push(...pdfHeaderContent("Comprovante de Aferição", [
@@ -2457,6 +2780,28 @@ function gerarComprovantePdf(c, u){
       t.fotoAssetId?"Anexada":"—"]),
     { numCols:[2,3] }
   ));
+  // gráfico de tendência por tanque (linha suavizada, estilo do dashboard de referência)
+  for(const t of c.tanques){
+    const tanqueObj = t.tanqueId ? u.tanques.find(x=>x.id===t.tanqueId) : u.tanques.find(x=>x.numero===t.numero);
+    if(tanqueObj){
+      const grafico = diffTrendPdfContent(tanqueObj, listaLancamentos);
+      if(grafico) content.push(grafico);
+    }
+  }
+  // fotos da régua anexadas
+  const fotosTanque = [];
+  for(const t of c.tanques){
+    if(!t.fotoAssetId) continue;
+    const img = await urlParaImagemDataUrl(t.fotoAssetId);
+    if(img) fotosTanque.push({ stack:[
+      { image:img, width:150, margin:[0,0,0,3] },
+      { text:`Tanque ${t.numero} — foto da régua`, fontSize:7.5, color:PDFC.GRAY },
+    ], margin:[0,0,10,10] });
+  }
+  if(fotosTanque.length){
+    content.push(pdfH2("Fotos da régua"));
+    content.push({ columns: fotosTanque, columnGap:10 });
+  }
   if(c.bombas.length){
     content.push(pdfH2("Aferição de bomba"));
     const bombaAlerta = c.bombas.some(b=>b.urgente);
@@ -2470,6 +2815,16 @@ function gerarComprovantePdf(c, u){
         (b.diferencaTotal>=0?"+":"")+fmtLFino(b.diferencaTotal)+(b.urgente?" ⚠":""), b.ultimaTxt||"—"]),
       { numCols:[2,3,4] }
     ));
+    const fotosBomba = [];
+    for(const b of c.bombas){
+      if(!b.anexoAssetId) continue;
+      const img = await urlParaImagemDataUrl(b.anexoAssetId);
+      if(img) fotosBomba.push({ stack:[
+        { image:img, width:150, margin:[0,0,0,3] },
+        { text:`Bomba ${b.numero} — anexo`, fontSize:7.5, color:PDFC.GRAY },
+      ], margin:[0,0,10,10] });
+    }
+    if(fotosBomba.length) content.push({ columns:fotosBomba, columnGap:10, margin:[0,0,0,6] });
   }
   if(c.observacao){
     content.push(pdfH2("Observação"));
@@ -2477,7 +2832,11 @@ function gerarComprovantePdf(c, u){
   }
   if(c.anexosLivres.length){
     content.push(pdfH2("Anexos"));
-    content.push({ text:c.anexosLivres.map(a=>a.nome).join(", "), fontSize:9.5, color:PDFC.GRAY });
+    for(const a of c.anexosLivres){
+      const img = await urlParaImagemDataUrl(a.assetId);
+      if(img) content.push({ stack:[ { image:img, width:220, margin:[0,2,0,3] }, { text:a.nome, fontSize:7.5, color:PDFC.GRAY } ], margin:[0,0,0,10] });
+      else content.push({ text:a.nome, fontSize:9.5, color:PDFC.GRAY, margin:[0,0,0,4] });
+    }
   }
   pdfDownload(pdfDoc(content), `comprovante-afericao-${c.protocolo}.pdf`);
 }
@@ -2517,7 +2876,7 @@ function modeloDivergencias(){
   });
   m.kpis = [
     {label:"Divergentes", valor:ordenados.filter(g=>g.cls.status==="bad").length, cor:PDFC.RED},
-    {label:"Fora do limite", valor:ordenados.filter(g=>g.cls.status==="warn").length, cor:PDFC.AMBER},
+    {label:"Fora do limite", valor:ordenados.filter(g=>g.cls.status==="warn").length, cor:PDFC.BLUE},
   ];
   const linhas = ordenados.map(g=>{
     const diffTxt = g.cls.diffFis===undefined
@@ -2636,7 +2995,7 @@ function modeloPendencias(){
   let afLinhas = [];
   lista.filter(unidadeAtiva).forEach(u=>{
     u.tanques.filter(tanqueAtivo).forEach(t=>{
-      const af = proximaAfericao(t);
+      const af = proximaAfericao(t, u);
       if(af.status==="bad" || af.status==="warn") afLinhas.push([u.nome, t.numero, t.produto, fmtDate(af.vencimento), afericaoTxt(af)]);
     });
   });
@@ -2655,7 +3014,7 @@ function modeloPendencias(){
   }
   m.kpis = [
     {label:"Aguardando físico", valor:grupos.length, cor:PDFC.GRAY},
-    {label:"Aferições em alerta", valor:afLinhas.length, cor:PDFC.AMBER},
+    {label:"Aferições em alerta", valor:afLinhas.length, cor:PDFC.BLUE},
     {label:"Agendamentos em atraso", valor:agAtrasadas.length, cor:PDFC.RED},
   ];
   return m;
@@ -2747,7 +3106,7 @@ function modeloPanorama(){
   m.kpis = [
     {label:"Unidades", valor:summaries.length, cor:PDFC.TEAL},
     {label:"Divergentes", valor:summaries.filter(s=>s.status==="bad").length, cor:PDFC.RED},
-    {label:"Fora do limite", valor:summaries.filter(s=>s.status==="warn").length, cor:PDFC.AMBER},
+    {label:"Fora do limite", valor:summaries.filter(s=>s.status==="warn").length, cor:PDFC.BLUE},
     {label:"Sem lançamento", valor:summaries.filter(s=>!s.status).length, cor:PDFC.GRAY},
   ];
   modeloTabela(m, "Resumo por unidade",
@@ -4454,10 +4813,11 @@ function renderPublicAfericao(){
               printAssetId:null, fotoAssetId, obs:"Registrado via link de aferição.", exemplo:false,
               responsavelNome: nome, responsavelMatricula: isPreposto?null:matricula, responsavelPreposto: isPreposto };
         await saveLancamento(l);
+        historicoLancamentos = historicoLancamentos.filter(x=>x.id!==l.id).concat([l]); // inclui esta leitura no histórico usado no gráfico de tendência
         const saldoCalc = saldoCalculadoAte(t.id, data, t.saldoInicial);
         const diferenca = saldoCalc - fisico;
         tanquesComprovante.push({
-          numero:t.numero, produto:t.produto, saldoFisico:fisico, fotoAssetId, diferenca,
+          numero:t.numero, produto:t.produto, saldoFisico:fisico, fotoAssetId, diferenca, tanqueId:t.id,
         });
       }
 
@@ -4509,7 +4869,7 @@ function renderPublicAfericao(){
         catch(e){ console.error("[saldo] falha ao salvar comprovante:", e); }
       }
 
-      gerarComprovantePdf(comprovante, u);
+      await gerarComprovantePdf(comprovante, u, historicoLancamentos);
       showToast("Aferição registrada com sucesso — comprovante gerado.");
       afPubState = { unidadeId:null, bombaQtd:{}, bombaDiffs:{} };
       renderPublicAfericao();
