@@ -454,6 +454,9 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .pan-filter-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:color-mix(in srgb, var(--teal) 14%, var(--paper));color:var(--teal-ink);font-size:12.5px;font-weight:600;margin-bottom:12px}
 .pan-filter-chip button{background:none;border:0;color:inherit;cursor:pointer;font:inherit;padding:0;text-decoration:underline}
 #panCidadesExpand{margin-top:10px}
+#panStatusExpand{margin-top:10px}
+.uf-trend{margin-bottom:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px 4px;background:var(--bg)}
+.uf-trend-title{font-size:11.5px;color:var(--muted);margin-bottom:2px}
 .pan-empty-hint{font-size:12.5px;color:var(--muted);border:1px dashed var(--line);border-radius:10px;padding:12px;text-align:center;margin:0}
 .pan-city-list{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);animation:fadeIn .15s ease}
 .pan-city-list .pcl-title{font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:2px}
@@ -466,8 +469,15 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .pan-resumo-grid{display:grid;gap:5px;font-size:12px;color:var(--muted);line-height:1.5}
 .pan-resumo-grid .dot{margin-right:2px}
 .pan-donut-wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.pan-pie-slice{cursor:pointer;transition:opacity .12s,transform .12s;transform-origin:70px 70px}
+.pan-pie-slice:hover{opacity:.82}
+.pan-pie-slice.sel{stroke:var(--paper);stroke-width:2}
 .pan-donut-legend{display:grid;gap:7px;font-size:12.5px}
-.pan-donut-legend .row{display:flex;align-items:center;gap:7px}
+.pan-donut-legend .row{display:flex;align-items:center;gap:7px;cursor:pointer;border-radius:6px;padding:2px 4px;margin:-2px -4px}
+.pan-donut-legend .row:hover{background:var(--bg)}
+.pan-donut-legend .row.sel{background:color-mix(in srgb, var(--teal) 12%, transparent);font-weight:600}
+.pan-donut-legend .row.total{cursor:default;border-top:1px solid var(--line);margin-top:2px;padding-top:6px}
+.pan-donut-legend .row.total:hover{background:none}
 .pan-donut-legend .sw{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
 .pan-donut-legend b{font-variant-numeric:tabular-nums}
 .pan-evo{width:100%;height:auto;display:block;cursor:crosshair}
@@ -825,6 +835,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
         <div class="pan-card">
           <h3>Composição por status</h3>
           <div id="panDonutWrap"></div>
+          <div id="panStatusExpand"></div>
         </div>
       </div>
       <div class="pan-card pan-wide">
@@ -1239,7 +1250,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-28-v61";
+const APP_BUILD = "2026-10-28-v62";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1998,10 +2009,6 @@ function ufAgregado(summaries){
     r.counts[statusAtual] = (r.counts[statusAtual]||0) + 1;
     if(r.pior===null || (STATUS_RANK[statusAtual]||0) > (STATUS_RANK[r.pior]||0)) r.pior = statusAtual;
   });
-  // intensidade = proporção de unidades do estado que estão de fato no status "pior" —
-  // evita pintar o estado inteiro com a cor mais grave quando é só 1 unidade isolada fora
-  // da curva entre várias conciliadas (o mapa passa a refletir a gravidade real, não o pior caso isolado)
-  porUF.forEach(r=>{ r.intensidade = r.qtd ? (r.counts[r.pior]||0)/r.qtd : 0; });
   return porUF;
 }
 function renderPanMapa(summaries){
@@ -2009,17 +2016,15 @@ function renderPanMapa(summaries){
   const porUF = ufAgregado(summaries);
   const paths = BR_MAP.map(s=>{
     const r = porUF.get(s.i);
+    // cor sólida pelo status mais grave do estado (sem gradiente de opacidade) —
+    // a classificação de cada unidade usa sempre o lançamento mais recente dela
     const cor = r ? PANO_STATUS_VARCOLOR[r.pior] : "var(--bg)";
-    // opacidade proporcional à fração de unidades no status mais grave do estado — um estado
-    // com 1 divergente em 5 unidades fica bem mais claro que um estado todo divergente
-    const minOp = 0.28, maxOp = 1;
-    const op = r ? (minOp + (maxOp-minOp)*r.intensidade) : 1;
     const interativo = !!r;
     const composicao = r ? Object.entries(r.counts).filter(([,n])=>n>0)
       .sort((a,b)=>(STATUS_RANK[b[0]]||0)-(STATUS_RANK[a[0]]||0))
       .map(([k,n])=>`${n} ${PANO_STATUS_LABEL[k].toLowerCase()}`).join(", ") : "";
     const label = r ? `${s.n}: ${r.qtd} unidade(s) — ${composicao}` : `${s.n}: sem unidade cadastrada`;
-    return `<path d="${s.p}" data-uf="${s.i}" class="uf${panoUFFiltro===s.i?' sel':''}" style="fill:${cor};fill-opacity:${op.toFixed(2)}" tabindex="${interativo?0:-1}" aria-label="${label}"><title>${label}</title></path>`;
+    return `<path d="${s.p}" data-uf="${s.i}" class="uf${panoUFFiltro===s.i?' sel':''}" style="fill:${cor}" tabindex="${interativo?0:-1}" aria-label="${label}"><title>${label}</title></path>`;
   }).join("");
   wrap.innerHTML = `<svg class="pan-map" id="panMapSvg" viewBox="${BR_VB}" role="img" aria-label="Mapa do Brasil por status das unidades e cidades">${paths}</svg>
     <div class="pan-legend">
@@ -2054,7 +2059,54 @@ function renderPanCidadesExpand(summariesTodas){
       <span class="muted">${PANO_STATUS_LABEL[st]}</span>
     </div>`;
   }).join("");
-  el.innerHTML = `<div class="pan-city-list"><div class="pcl-title">Cidades em ${UF_NOME_BR[panoUFFiltro]||panoUFFiltro} (${cidades.length}) — divergentes/fora do limite destacadas</div>${rows}</div>`;
+  el.innerHTML = `${ufTrendSvg(panoUFFiltro)}<div class="pan-city-list"><div class="pcl-title">Cidades em ${UF_NOME_BR[panoUFFiltro]||panoUFFiltro} (${cidades.length}) — divergentes/fora do limite destacadas</div>${rows}</div>`;
+}
+// mini gráfico de tendência (linha suavizada + bolinha no último ponto) do estado selecionado —
+// soma de divergências + fora do limite por dia, últimos 14 dias, mesmo estilo do gráfico de Evolução
+function ufTrendSvg(uf){
+  const rows = allRows().filter(r=>r.u.estado===uf);
+  const dias = [];
+  for(let i=13;i>=0;i--){ const d=new Date(); d.setUTCHours(0,0,0,0); d.setUTCDate(d.getUTCDate()-i); dias.push(dstr(d)); }
+  const porDia = dias.map(d=>{
+    const doDia = rows.filter(r=>r.data===d);
+    return { d, n: doDia.filter(r=>r.cls.status==="bad"||r.cls.status==="warn").length };
+  });
+  if(!porDia.some(p=>p.n>0)){
+    return `<p class="pan-empty-hint" style="margin-bottom:10px">Sem divergências/fora do limite recentes em ${UF_NOME_BR[uf]||uf}.</p>`;
+  }
+  const maxV = Math.max(1, ...porDia.map(p=>p.n));
+  const n = porDia.length;
+  const w=420, h=92, padX=12, padT=14, padB=18;
+  const xs = porDia.map((_,i)=> n>1 ? padX + i*((w-2*padX)/(n-1)) : w/2);
+  const chartH = h-padT-padB;
+  const yOf = v => padT + chartH - (v/maxV)*chartH;
+  const ys = porDia.map(p=>yOf(p.n));
+  const path = buildSmoothPath(xs, ys);
+  const baseY = padT+chartH;
+  const areaPath = `${path} L ${xs[n-1].toFixed(1)},${baseY.toFixed(1)} L ${xs[0].toFixed(1)},${baseY.toFixed(1)} Z`;
+  const dots = xs.map((x,i)=>{
+    const isLast = i===n-1;
+    return `<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="${isLast?3.6:2}" fill="${isLast?'var(--bad)':'var(--paper)'}" stroke="var(--bad)" stroke-width="1.4"/>`;
+  }).join("");
+  const dateLabels = porDia.map((p,i)=>{
+    if(n>8 && i%2!==0 && i!==n-1) return "";
+    return `<text x="${xs[i].toFixed(1)}" y="${h-5}" text-anchor="middle" font-size="8" fill="var(--muted)">${p.d.slice(8,10)}/${p.d.slice(5,7)}</text>`;
+  }).join("");
+  const ultimo = porDia[n-1].n;
+  return `<div class="uf-trend">
+    <div class="uf-trend-title">Tendência em ${UF_NOME_BR[uf]||uf} — divergências/fora do limite (14 dias)</div>
+    <svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" role="img" aria-label="Tendência de divergências em ${UF_NOME_BR[uf]||uf}">
+      <defs><linearGradient id="ufTrendGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--bad)" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="var(--bad)" stop-opacity="0.02"/>
+      </linearGradient></defs>
+      <path d="${areaPath}" fill="url(#ufTrendGrad)" stroke="none"/>
+      <path d="${path}" fill="none" stroke="var(--bad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      ${dots}
+      <text x="${(xs[n-1]+5).toFixed(1)}" y="${(ys[n-1]+3).toFixed(1)}" font-size="10" font-weight="700" fill="var(--bad)">${ultimo}</text>
+      ${dateLabels}
+    </svg>
+  </div>`;
 }
 function pieSlicePath(cx,cy,r,a0,a1){
   const x0 = cx + r*Math.cos(a0), y0 = cy + r*Math.sin(a0);
@@ -2062,6 +2114,7 @@ function pieSlicePath(cx,cy,r,a0,a1){
   const large = (a1-a0) > Math.PI ? 1 : 0;
   return `M${cx},${cy} L${x0.toFixed(2)},${y0.toFixed(2)} A${r},${r} 0 ${large} 1 ${x1.toFixed(2)},${y1.toFixed(2)} Z`;
 }
+let panoStatusFiltro = null;
 function renderPanDonut(summaries){
   const wrap = document.getElementById("panDonutWrap");
   const counts = {ok:0,warn:0,bad:0,pend:0,sem:0};
@@ -2070,19 +2123,41 @@ function renderPanDonut(summaries){
   if(!total){ wrap.innerHTML = `<p class="pan-empty">Nenhuma unidade cadastrada.</p>`; return; }
   const ordem = ["bad","warn","pend","ok","sem"];
   let ang = -Math.PI/2;
-  const cx=70, cy=70, r=60;
+  const cx=70, cy=70, r=66;
+  // pizza cheia (sem buraco no meio), clicável: clicar numa fatia filtra as unidades daquele
+  // status na lista abaixo (ver renderPanStatusExpand)
   const fatias = ordem.filter(k=>counts[k]>0).map(k=>{
     const frac = counts[k]/total;
     const a0 = ang, a1 = ang + frac*2*Math.PI;
     ang = a1;
-    return `<path d="${pieSlicePath(cx,cy,r,a0,a1)}" fill="${PANO_STATUS_VARCOLOR[k]}"><title>${PANO_STATUS_LABEL[k]}: ${counts[k]}</title></path>`;
+    const sel = panoStatusFiltro===k ? " sel" : "";
+    return `<path d="${pieSlicePath(cx,cy,r,a0,a1)}" data-status="${k}" class="pan-pie-slice${sel}" fill="${PANO_STATUS_VARCOLOR[k]}" tabindex="0" aria-label="${PANO_STATUS_LABEL[k]}: ${counts[k]}"><title>${PANO_STATUS_LABEL[k]}: ${counts[k]} (clique para ver as unidades)</title></path>`;
   }).join("");
   const legenda = ordem.filter(k=>counts[k]>0).map(k=>`
-    <div class="row"><span class="sw" style="background:${PANO_STATUS_VARCOLOR[k]}"></span>${PANO_STATUS_LABEL[k]} — <b>${counts[k]}</b></div>`).join("");
+    <div class="row${panoStatusFiltro===k?' sel':''}" data-status="${k}"><span class="sw" style="background:${PANO_STATUS_VARCOLOR[k]}"></span>${PANO_STATUS_LABEL[k]} — <b>${counts[k]}</b></div>`).join("");
   wrap.innerHTML = `<div class="pan-donut-wrap">
-    <svg width="140" height="140" viewBox="0 0 140 140" role="img" aria-label="Composição das unidades por status">${fatias}<circle cx="${cx}" cy="${cy}" r="32" fill="var(--paper)"/><text x="${cx}" y="${cy+5}" text-anchor="middle" font-size="18" font-weight="700" fill="var(--ink)">${total}</text></svg>
-    <div class="pan-donut-legend">${legenda}</div>
+    <svg width="140" height="140" viewBox="0 0 140 140" role="img" aria-label="Composição das unidades por status (clique numa fatia para ver as unidades)">${fatias}</svg>
+    <div class="pan-donut-legend">${legenda}<div class="row total">Total — <b>${total}</b></div></div>
   </div>`;
+  wrap.querySelectorAll("[data-status]").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      const st = el.dataset.status;
+      panoStatusFiltro = panoStatusFiltro===st ? null : st;
+      renderPanorama();
+    });
+  });
+}
+function renderPanStatusExpand(summariesTodas){
+  const el = document.getElementById("panStatusExpand");
+  if(!el) return;
+  if(!panoStatusFiltro){ el.innerHTML = `<p class="pan-empty-hint">Clique numa fatia do gráfico para ver as unidades daquele status.</p>`; return; }
+  const lista = summariesTodas.filter(s=>(s.status||"sem")===panoStatusFiltro).sort((a,b)=>a.u.nome.localeCompare(b.u.nome));
+  if(!lista.length){ el.innerHTML = `<p class="pan-empty-hint">Nenhuma unidade em "${PANO_STATUS_LABEL[panoStatusFiltro]}".</p>`; return; }
+  const rows = lista.map(s=>`<div class="pan-city-row">
+    <span class="name"><span class="dot ${panoStatusFiltro}" ${panoStatusFiltro==='sem'?'style="background:var(--line)"':''}></span>${s.u.nome}</span>
+    <span class="muted">${s.u.estado}</span>
+  </div>`).join("");
+  el.innerHTML = `<div class="pan-city-list"><div class="pcl-title">${PANO_STATUS_LABEL[panoStatusFiltro]} (${lista.length})</div>${rows}</div>`;
 }
 function renderPanEvolucao(){
   const wrap = document.getElementById("panEvoWrap");
@@ -2192,6 +2267,7 @@ function renderPanorama(){
   const summariesTodas = unidades.filter(unidadeAtiva).map(u=>unidadeSummary(u, grupos)).filter(Boolean);
   renderPanMapa(summariesTodas);
   renderPanDonut(summariesTodas);
+  renderPanStatusExpand(summariesTodas);
   renderPanEvolucao();
   const chipWrap = document.getElementById("panFiltroChip");
   if(panoUFFiltro){
