@@ -470,10 +470,14 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .pan-donut-legend .row{display:flex;align-items:center;gap:7px}
 .pan-donut-legend .sw{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
 .pan-donut-legend b{font-variant-numeric:tabular-nums}
-.pan-evo{width:100%;height:auto;display:block}
-.pan-evo .bar-bad{fill:var(--bad)} .pan-evo .bar-warn{fill:var(--warn)}
+.pan-evo{width:100%;height:auto;display:block;cursor:crosshair}
 .pan-evo .axis{stroke:var(--line);stroke-width:1}
-.pan-evo text{font-size:9px;fill:var(--muted)}
+.pan-evo text{fill:var(--muted)}
+.pan-evo-pt{transition:r .1s ease}
+.pan-evo-wrap{touch-action:none}
+.pan-evo-tooltip{position:absolute;top:4px;transform:translateX(-50%);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:11.5px;box-shadow:0 4px 14px rgba(0,0,0,.12);pointer-events:none;white-space:nowrap;z-index:5}
+.pan-evo-tooltip b{display:block;margin-bottom:3px;font-size:11px}
+.pan-evo-tooltip div{display:flex;align-items:center;gap:5px}
 .pan-empty{color:var(--muted);font-size:13px;padding:10px 0}
 
 /* Tabela explicativa de percentual de saldo */
@@ -579,6 +583,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .tank-chip.tank-inativo{opacity:.55}
 .tank-chip-toggle{margin-top:8px;width:100%;background:none;border:1px solid var(--line);border-radius:6px;padding:3px 6px;font-size:11px;color:var(--muted);cursor:pointer}
 .tank-chip-toggle:hover{color:var(--ink);border-color:var(--teal)}
+.tank-chip-actions{display:flex;gap:6px}
+.tank-chip-actions .tank-chip-toggle{margin-top:8px}
 .detail-actions{display:flex;gap:8px;margin-top:10px}
 .occ-cols .occ-row > .occ-txt{order:3;text-align:right}
 .occ-cols .occ-label{min-width:0;font-weight:600;color:var(--ink)}
@@ -617,8 +623,12 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .rpt-type-card.active{border-color:var(--teal);box-shadow:0 0 0 2px color-mix(in srgb, var(--teal) 25%, transparent)}
 .rpt-preview-wrap{margin-top:16px;display:flex;justify-content:center}
 .rpt-preview{
-  background:#fff;color:#1a1a1a;width:100%;max-width:900px;border-radius:4px;box-shadow:var(--shadow);
+  background:#fff;color:#1a1a1a;width:100%;max-width:min(1400px,96vw);border-radius:4px;box-shadow:var(--shadow);
   padding:32px;min-height:160px;
+}
+@media (min-width:1500px){
+  .rpt-preview{padding:40px}
+  .rpt-table{font-size:13px}
 }
 .rpt-header{border-bottom:2px solid #1a1a1a;padding-bottom:14px;margin-bottom:18px}
 .rpt-header-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
@@ -907,7 +917,6 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
     <section id="view-cadastro" hidden>
       <div class="fab-row">
         <button class="btn btn-add" id="openNovaUnidade">+ Nova unidade</button>
-        <button class="btn btn-ghost" id="openLinkAfericaoGlobal">Link de aferição</button>
         <button class="btn btn-ghost" id="testarDb">Testar conexão com o banco</button>
       </div>
       <div id="unidadesList"></div>
@@ -1230,7 +1239,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-27-v60";
+const APP_BUILD = "2026-10-28-v61";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1982,12 +1991,17 @@ function ufAgregado(summaries){
   const porUF = new Map();
   summaries.forEach(s=>{
     const uf = s.u.estado;
-    if(!porUF.has(uf)) porUF.set(uf, { uf, pior:null, qtd:0 });
+    if(!porUF.has(uf)) porUF.set(uf, { uf, pior:null, qtd:0, counts:{ok:0,warn:0,bad:0,pend:0,sem:0} });
     const r = porUF.get(uf);
     r.qtd++;
     const statusAtual = s.status || "sem"; // "sem" = sem lançamento
+    r.counts[statusAtual] = (r.counts[statusAtual]||0) + 1;
     if(r.pior===null || (STATUS_RANK[statusAtual]||0) > (STATUS_RANK[r.pior]||0)) r.pior = statusAtual;
   });
+  // intensidade = proporção de unidades do estado que estão de fato no status "pior" —
+  // evita pintar o estado inteiro com a cor mais grave quando é só 1 unidade isolada fora
+  // da curva entre várias conciliadas (o mapa passa a refletir a gravidade real, não o pior caso isolado)
+  porUF.forEach(r=>{ r.intensidade = r.qtd ? (r.counts[r.pior]||0)/r.qtd : 0; });
   return porUF;
 }
 function renderPanMapa(summaries){
@@ -1996,9 +2010,16 @@ function renderPanMapa(summaries){
   const paths = BR_MAP.map(s=>{
     const r = porUF.get(s.i);
     const cor = r ? PANO_STATUS_VARCOLOR[r.pior] : "var(--bg)";
+    // opacidade proporcional à fração de unidades no status mais grave do estado — um estado
+    // com 1 divergente em 5 unidades fica bem mais claro que um estado todo divergente
+    const minOp = 0.28, maxOp = 1;
+    const op = r ? (minOp + (maxOp-minOp)*r.intensidade) : 1;
     const interativo = !!r;
-    const label = r ? `${s.n}: ${r.qtd} unidade(s) · ${PANO_STATUS_LABEL[r.pior]}` : `${s.n}: sem unidade cadastrada`;
-    return `<path d="${s.p}" data-uf="${s.i}" class="uf${panoUFFiltro===s.i?' sel':''}" style="fill:${cor}" tabindex="${interativo?0:-1}" aria-label="${label}"><title>${label}</title></path>`;
+    const composicao = r ? Object.entries(r.counts).filter(([,n])=>n>0)
+      .sort((a,b)=>(STATUS_RANK[b[0]]||0)-(STATUS_RANK[a[0]]||0))
+      .map(([k,n])=>`${n} ${PANO_STATUS_LABEL[k].toLowerCase()}`).join(", ") : "";
+    const label = r ? `${s.n}: ${r.qtd} unidade(s) — ${composicao}` : `${s.n}: sem unidade cadastrada`;
+    return `<path d="${s.p}" data-uf="${s.i}" class="uf${panoUFFiltro===s.i?' sel':''}" style="fill:${cor};fill-opacity:${op.toFixed(2)}" tabindex="${interativo?0:-1}" aria-label="${label}"><title>${label}</title></path>`;
   }).join("");
   wrap.innerHTML = `<svg class="pan-map" id="panMapSvg" viewBox="${BR_VB}" role="img" aria-label="Mapa do Brasil por status das unidades e cidades">${paths}</svg>
     <div class="pan-legend">
@@ -2073,28 +2094,96 @@ function renderPanEvolucao(){
     const doDia = rows.filter(r=>r.data===d);
     return { d, bad: doDia.filter(r=>r.cls.status==="bad").length, warn: doDia.filter(r=>r.cls.status==="warn").length };
   });
-  const maxV = Math.max(1, ...porDia.map(p=>p.bad+p.warn));
-  const W=700, H=160, padL=24, padB=20, padT=8, barGap=4;
-  const chartW = W-padL-8, chartH = H-padT-padB;
-  const barW = (chartW/porDia.length) - barGap;
-  const bars = porDia.map((p,i)=>{
-    const x = padL + i*(barW+barGap);
-    const totalV = p.bad+p.warn;
-    const hTotal = totalV ? (totalV/maxV)*chartH : 0;
-    const hBad = totalV ? (p.bad/totalV)*hTotal : 0;
-    const hWarn = hTotal - hBad;
-    const yBase = padT+chartH;
-    const mostraLabel = (i%2===0) || porDia.length<=8;
-    return `${hWarn>0?`<rect class="bar-warn" x="${x}" y="${(yBase-hTotal).toFixed(1)}" width="${barW.toFixed(1)}" height="${hWarn.toFixed(1)}"><title>${fmtDate(p.d)}: ${p.warn} fora do limite</title></rect>`:""}
-      ${hBad>0?`<rect class="bar-bad" x="${x}" y="${(yBase-hBad).toFixed(1)}" width="${barW.toFixed(1)}" height="${hBad.toFixed(1)}"><title>${fmtDate(p.d)}: ${p.bad} divergente(s)</title></rect>`:""}
-      ${mostraLabel?`<text x="${(x+barW/2).toFixed(1)}" y="${H-4}" text-anchor="middle">${p.d.slice(8,10)}/${p.d.slice(5,7)}</text>`:""}`;
-  }).join("");
   const temDados = porDia.some(p=>p.bad+p.warn>0);
-  wrap.innerHTML = `<svg class="pan-evo" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMinYMin meet" role="img" aria-label="Evolução de divergências e itens fora do limite nos últimos 14 dias">
-    <line class="axis" x1="${padL}" y1="${padT+chartH}" x2="${W-4}" y2="${padT+chartH}"/>
-    ${bars}
-  </svg>
-  ${!temDados?`<p class="pan-empty" style="margin-top:4px">Nenhuma divergência ou item fora do limite nos últimos 14 dias.</p>`:`<div class="pan-legend" style="margin-top:4px"><span><span class="dot bad"></span>Divergente</span><span><span class="dot warn"></span>Fora do limite</span></div>`}`;
+  if(!temDados){
+    wrap.innerHTML = `<p class="pan-empty" style="margin-top:4px">Nenhuma divergência ou item fora do limite nos últimos 14 dias.</p>`;
+    return;
+  }
+  const maxV = Math.max(1, ...porDia.map(p=>Math.max(p.bad,p.warn)));
+  const n = porDia.length;
+  const W=700, H=190, padL=26, padR=14, padT=16, padB=26;
+  const chartW = W-padL-padR, chartH = H-padT-padB;
+  const xs = porDia.map((_,i)=> n>1 ? padL + i*(chartW/(n-1)) : padL+chartW/2);
+  const yOf = v => padT+chartH - (v/maxV)*chartH;
+  const ysBad = porDia.map(p=>yOf(p.bad));
+  const ysWarn = porDia.map(p=>yOf(p.warn));
+  const pathBad = buildSmoothPath(xs, ysBad);
+  const pathWarn = buildSmoothPath(xs, ysWarn);
+  const baseY = padT+chartH;
+  const areaBad = `${pathBad} L ${xs[n-1].toFixed(1)},${baseY.toFixed(1)} L ${xs[0].toFixed(1)},${baseY.toFixed(1)} Z`;
+  const gridLines = [0,0.5,1].map(f=>{
+    const y = padT + chartH*(1-f);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1" stroke-dasharray="2,3"/>
+      <text x="${(padL-6).toFixed(1)}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--muted)">${Math.round(maxV*f)}</text>`;
+  }).join("");
+  const dateLabels = porDia.map((p,i)=>{
+    if(n>8 && i%2!==0 && i!==n-1) return "";
+    return `<text x="${xs[i].toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="9.5" fill="var(--muted)">${p.d.slice(8,10)}/${p.d.slice(5,7)}</text>`;
+  }).join("");
+  const lastBad = porDia[n-1].bad, lastWarn = porDia[n-1].warn;
+  const dotsBad = xs.map((x,i)=>`<circle class="pan-evo-pt" data-i="${i}" cx="${x.toFixed(1)}" cy="${ysBad[i].toFixed(1)}" r="${i===n-1?3.6:0}" fill="var(--bad)"/>`).join("");
+  const dotsWarn = xs.map((x,i)=>`<circle class="pan-evo-pt" data-i="${i}" cx="${x.toFixed(1)}" cy="${ysWarn[i].toFixed(1)}" r="${i===n-1?3.6:0}" fill="var(--warn)"/>`).join("");
+  const hoverCols = xs.map((x,i)=>{
+    const colW = chartW/n;
+    return `<rect class="pan-evo-hover" data-i="${i}" x="${(x-colW/2).toFixed(1)}" y="${padT}" width="${colW.toFixed(1)}" height="${chartH.toFixed(1)}" fill="transparent"/>`;
+  }).join("");
+  wrap.innerHTML = `<div class="pan-evo-wrap" style="position:relative">
+    <svg class="pan-evo" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMinYMin meet" role="img" aria-label="Evolução de divergências e itens fora do limite nos últimos 14 dias">
+      <defs><linearGradient id="panEvoGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--bad)" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="var(--bad)" stop-opacity="0.02"/>
+      </linearGradient></defs>
+      ${gridLines}
+      <path d="${areaBad}" fill="url(#panEvoGrad)" stroke="none"/>
+      <path d="${pathWarn}" fill="none" stroke="var(--warn)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${pathBad}" fill="none" stroke="var(--bad)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      ${dotsWarn}
+      ${dotsBad}
+      <text x="${(xs[n-1]+4).toFixed(1)}" y="${(ysBad[n-1]+3).toFixed(1)}" font-size="10" font-weight="700" fill="var(--bad)">${lastBad}</text>
+      <text x="${(xs[n-1]+4).toFixed(1)}" y="${(ysWarn[n-1]+3).toFixed(1)}" font-size="10" font-weight="700" fill="var(--warn)">${lastWarn}</text>
+      <line class="pan-evo-cursor" x1="0" y1="${padT}" x2="0" y2="${baseY}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>
+      ${dateLabels}
+      ${hoverCols}
+    </svg>
+    <div class="pan-evo-tooltip" id="panEvoTooltip" hidden></div>
+  </div>
+  <div class="pan-legend" style="margin-top:4px"><span><span class="dot bad"></span>Divergente</span><span><span class="dot warn"></span>Fora do limite</span></div>`;
+
+  // tooltip interativo: passar o mouse mostra a data e os dois valores daquele dia,
+  // com uma linha-guia vertical (estilo do dashboard de referência)
+  const svgEl = wrap.querySelector("svg.pan-evo");
+  const tooltip = document.getElementById("panEvoTooltip");
+  const cursor = wrap.querySelector(".pan-evo-cursor");
+  const ptsBad = [...wrap.querySelectorAll('.pan-evo-pt[fill="var(--bad)"]')];
+  const ptsWarn = [...wrap.querySelectorAll('.pan-evo-pt[fill="var(--warn)"]')];
+  function showAt(i){
+    const p = porDia[i];
+    cursor.setAttribute("x1", xs[i].toFixed(1));
+    cursor.setAttribute("x2", xs[i].toFixed(1));
+    cursor.setAttribute("opacity", "1");
+    ptsBad.forEach((c,j)=>c.setAttribute("r", j===i||j===n-1?"3.6":"0"));
+    ptsWarn.forEach((c,j)=>c.setAttribute("r", j===i||j===n-1?"3.6":"0"));
+    const rect = svgEl.getBoundingClientRect();
+    const wrapRect = wrap.querySelector(".pan-evo-wrap").getBoundingClientRect();
+    const scale = rect.width / W;
+    const left = (xs[i]*scale) + (rect.left - wrapRect.left);
+    tooltip.innerHTML = `<b>${fmtDate(p.d)}</b><div><span class="dot bad"></span>${p.bad} divergente(s)</div><div><span class="dot warn"></span>${p.warn} fora do limite</div>`;
+    tooltip.hidden = false;
+    tooltip.style.left = Math.min(Math.max(left,60), rect.width-60) + "px";
+  }
+  function hide(){
+    cursor.setAttribute("opacity","0");
+    ptsBad.forEach((c,j)=>c.setAttribute("r", j===n-1?"3.6":"0"));
+    ptsWarn.forEach((c,j)=>c.setAttribute("r", j===n-1?"3.6":"0"));
+    tooltip.hidden = true;
+  }
+  wrap.querySelectorAll(".pan-evo-hover").forEach(rect=>{
+    const i = Number(rect.dataset.i);
+    rect.addEventListener("mouseenter", ()=>showAt(i));
+    rect.addEventListener("mousemove", ()=>showAt(i));
+    rect.addEventListener("click", ()=>showAt(i));
+  });
+  svgEl.addEventListener("mouseleave", hide);
 }
 
 function renderPanorama(){
@@ -2501,6 +2590,16 @@ const STATUS_LABEL = {ok:"Conciliado", warn:"Fora do limite", bad:"Divergente", 
 
 /* ---- PDF (pdfmake) — paleta, helpers e download ---- */
 const PDFC = { TEAL:'#0e7c86', TEAL_DARK:'#0a5a62', INK:'#1a1a1a', GRAY:'#666666', LIGHT:'#f2f2f2', BORDER:'#dddddd', GREEN:'#1a7a4c', AMBER:'#9a6a0d', RED:'#a9342c', BLUE:'#1B57B7' };
+// mistura uma cor hex com branco (factor 0 = cor pura, 1 = branco) — usada para fundos claros
+// (cartões de KPI, destaques) em vez de hex com canal alfa ("#rrggbbaa"), que o layout de
+// tabela do pdfmake não interpreta direito e cai num laranja/amarelo de fallback (bug real
+// visto nos comprovantes: os cartões de KPI saíam laranja em vez da cor pedida)
+function pdfTint(hex, factor){
+  const h = String(hex||'').replace('#','');
+  const r = parseInt(h.slice(0,2),16)||0, g = parseInt(h.slice(2,4),16)||0, b = parseInt(h.slice(4,6),16)||0;
+  const mix = c => Math.round(c + (255-c)*factor);
+  return '#' + [mix(r),mix(g),mix(b)].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
 function pdfNow(){ return new Date().toLocaleString("pt-BR"); }
 function pdfHeaderContent(titulo, subLinhas, marca){
   marca = marca || marcaPadrao();
@@ -2527,7 +2626,7 @@ function pdfKpiRow(items){ // items: [label, value, color]
       margin:[8,8,8,8],
     })) ] },
     layout:{ hLineWidth:()=>0, vLineWidth:()=>0, paddingLeft:()=>0, paddingRight:()=>0, paddingTop:()=>0, paddingBottom:()=>0,
-      fillColor:(i,node,j)=> items[j] && items[j][2] ? items[j][2]+'22' : '#f4f6f5' },
+      fillColor:(i,node,j)=> items[j] && items[j][2] ? pdfTint(items[j][2], 0.88) : '#f4f6f5' },
     margin:[0,10,0,10],
   };
 }
@@ -2547,13 +2646,19 @@ function pdfStyledTable(headers, rows, opts){
     margin:[0,0,0,10],
   };
 }
-function pdfDoc(content){
-  return { pageSize:'A4', pageMargins:[36,36,36,36], content,
+function pdfDoc(content, orientation){
+  return { pageSize:'A4', pageOrientation: orientation==="landscape"?"landscape":"portrait", pageMargins:[30,36,30,36], content,
     defaultStyle:{ font:'Roboto', fontSize:9.5, color:PDFC.INK },
     footer:(cur,total)=> ({ columns:[
       { text:"Gerado automaticamente pelo sistema de Combustível — Atlântico Transportes", fontSize:8, color:PDFC.GRAY },
       { text:`Página ${cur} de ${total}`, fontSize:8, color:PDFC.GRAY, alignment:'right' },
-    ], margin:[36,6,36,0] }) };
+    ], margin:[30,6,30,0] }) };
+}
+// relatórios com tabela de muitas colunas (ex: Conciliação detalhada, com 12 colunas) ficam
+// espremidos e com texto cortado no A4 retrato — essa checagem decide paisagem automaticamente
+// quando algum bloco do relatório tem 7+ colunas, sem precisar marcar isso manualmente em cada modelo
+function precisaPaisagem(modelo){
+  return (modelo.blocos||[]).some(b=> b.headers && b.headers.length>=7);
 }
 function pdfDownload(doc, filename){
   if(typeof pdfMake === "undefined" || !pdfMake.createPdf){ showToast("Biblioteca de PDF ainda não carregou — tente novamente em instantes."); return; }
@@ -2690,55 +2795,47 @@ async function urlParaImagemDataUrl(url){
     });
   }catch(e){ console.error("[saldo] falha ao carregar anexo para o PDF:", e); return null; }
 }
-function sampleSmoothCurve(xs, ys, perSeg){
-  perSeg = perSeg||12;
-  if(xs.length<2) return xs.map((x,i)=>({x,y:ys[i]}));
-  const pts = [{x:xs[0], y:ys[0]}];
-  for(let i=0;i<xs.length-1;i++){
-    const x0=i>0?xs[i-1]:xs[i], y0=i>0?ys[i-1]:ys[i];
-    const x1=xs[i], y1=ys[i], x2=xs[i+1], y2=ys[i+1];
-    const x3=i+2<xs.length?xs[i+2]:x2, y3=i+2<xs.length?ys[i+2]:y2;
-    const c1x=x1+(x2-x0)/6, c1y=y1+(y2-y0)/6;
-    const c2x=x2-(x3-x1)/6, c2y=y2-(y3-y1)/6;
-    for(let s=1;s<=perSeg;s++){
-      const t=s/perSeg, mt=1-t;
-      pts.push({
-        x: mt*mt*mt*x1 + 3*mt*mt*t*c1x + 3*mt*t*t*c2x + t*t*t*x2,
-        y: mt*mt*mt*y1 + 3*mt*mt*t*c1y + 3*mt*t*t*c2y + t*t*t*y2,
-      });
-    }
-  }
-  return pts;
-}
-// versão do gráfico de tendência (linha suavizada + área em gradiente, em tons de azul/teal)
-// para embutir no PDF, desenhada com os elementos de "canvas" nativos do pdfmake
+// versão do gráfico de tendência (linha suavizada + área leve, em tons de teal) para embutir
+// no PDF. Desenhada como SVG de verdade (pdfmake sabe embutir svg), não com os elementos de
+// "canvas" nativos do pdfmake — esses (polyline/ellipse soltos num array "canvas") têm um bug
+// real de layout nessa versão do pdfmake: o bloco não reserva a altura certa no fluxo do
+// documento e o preenchimento da área acaba esticado na diagonal por cima do resto da página.
+// Embutir como <svg> (mesmo path suavizado usado no gráfico da tela) evita o bug e garante que
+// o gráfico fica idêntico ao que aparece no app.
 function diffTrendPdfContent(tanque, listaLancamentos){
   const d = diffTrendData(tanque, 8, listaLancamentos);
   if(!d) return null;
   const { vals, datas, n } = d;
-  const w=480, h=110, padX=16, padT=10, padB=10;
+  const w=480, h=110, padX=16, padT=10, padB=18;
   const maxAbs = Math.max(2.5, ...vals.map(v=>Math.abs(v)));
   const zeroY = padT + (h-padT-padB)/2;
   const ampl = (h-padT-padB)/2 - 4;
   const xs = vals.map((_,i)=> n>1 ? padX + i*((w-2*padX)/(n-1)) : w/2);
   const ys = vals.map(v=> zeroY - (v/maxAbs)*ampl);
-  const curve = sampleSmoothCurve(xs, ys, 14);
-  const areaPts = curve.concat([{x:curve[curve.length-1].x, y:zeroY}, {x:curve[0].x, y:zeroY}]);
-  const canvas = [
-    { type:'line', x1:padX, y1:zeroY, x2:w-padX, y2:zeroY, lineWidth:0.75, lineColor:PDFC.BORDER },
-    { type:'polyline', points:areaPts, closePath:true, color:'#d8ecee', lineWidth:0 },
-    { type:'polyline', points:curve, lineWidth:1.8, lineColor:PDFC.TEAL },
-  ];
-  xs.forEach((x,i)=>{
+  const path = buildSmoothPath(xs, ys);
+  const baseY = h-padB;
+  const areaPath = `${path} L ${xs[n-1].toFixed(1)},${baseY.toFixed(1)} L ${xs[0].toFixed(1)},${baseY.toFixed(1)} Z`;
+  const dots = xs.map((x,i)=>{
     const last = i===n-1;
-    canvas.push({ type:'ellipse', x, y:ys[i], r1:last?3.6:2.1, r2:last?3.6:2.1, color: last?PDFC.TEAL:'#ffffff', lineColor:PDFC.TEAL, lineWidth:1.1 });
-  });
+    return `<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="${last?3.6:2.1}" fill="${last?PDFC.TEAL:'#ffffff'}" stroke="${PDFC.TEAL}" stroke-width="1.1"/>`;
+  }).join("");
+  const dateLabels = datas.map((dt,i)=>{
+    if(n>6 && i%2!==0 && i!==n-1) return "";
+    return `<text x="${xs[i].toFixed(1)}" y="${h-4}" text-anchor="middle" font-size="7.5" fill="${PDFC.GRAY}">${dt.slice(8,10)}/${dt.slice(5,7)}</text>`;
+  }).join("");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <line x1="${padX}" y1="${zeroY.toFixed(1)}" x2="${w-padX}" y2="${zeroY.toFixed(1)}" stroke="${PDFC.BORDER}" stroke-width="0.75" stroke-dasharray="3,3"/>
+    <path d="${areaPath}" fill="#d8ecee" stroke="none"/>
+    <path d="${path}" fill="none" stroke="${PDFC.TEAL}" stroke-width="1.8"/>
+    ${dots}
+    ${dateLabels}
+  </svg>`;
   const ultimo = vals[n-1];
   const periodoTxt = `${fmtDate(datas[0])} a ${fmtDate(datas[n-1])}`;
   return { stack:[
     { text:`Tanque ${tanque.numero} — tendência da diferença (últimas ${n} leituras, ${periodoTxt})`, fontSize:8.5, color:PDFC.TEAL_DARK, bold:true, margin:[0,0,0,3] },
-    { canvas, margin:[0,0,0,2] },
-    { text:`Diferença mais recente: ${(ultimo>=0?"+":"")}${fmtLFino(ultimo)}${Math.abs(ultimo)>2.5?"  ⚠ acima de 2,5 l":""}`, fontSize:8, color: Math.abs(ultimo)>2.5?PDFC.RED:PDFC.GRAY },
+    { svg, width:480, margin:[0,0,0,2] },
+    { text:`Diferença mais recente: ${(ultimo>=0?"+":"")}${fmtLFino(ultimo)}${Math.abs(ultimo)>2.5?"  acima de 2,5 l":""}`, fontSize:8, color: Math.abs(ultimo)>2.5?PDFC.RED:PDFC.GRAY },
   ], margin:[0,4,0,12] };
 }
 // comprovante em PDF gerado logo após o envio do link público de aferição — reaproveita
@@ -2830,8 +2927,8 @@ async function gerarComprovantePdf(c, u, listaLancamentos){
 function criarModelo(titulo, subtitulo, marca){
   return { titulo, subtitulo, marca: marca || marcaParaSelecao(unidadesSelecionadasOuTodas()), kpis:[], blocos:[] };
 }
-function modeloTabela(modelo, titulo, headers, linhas, numCols){
-  modelo.blocos.push({ tipo:"tabela", titulo:titulo||null, headers, linhas, numCols:numCols||[] });
+function modeloTabela(modelo, titulo, headers, linhas, numCols, widths){
+  modelo.blocos.push({ tipo:"tabela", titulo:titulo||null, headers, linhas, numCols:numCols||[], widths:widths||null });
 }
 function modeloTexto(modelo, texto){
   modelo.blocos.push({ tipo:"texto", texto });
@@ -2849,7 +2946,8 @@ function modeloConciliacao(){
       fmtL(g.saldoAb), fmtL(g.saldoSup), g.fisicoCompleto?fmtL(g.saldoFisico):"Aguardando",
       diffTxt, STATUS_LABEL[g.cls.status]||g.cls.status, motivacoes||"—"];
   });
-  modeloTabela(m, null, ["Unidade","Produto","Tanque(s)","Data","Entrada","Saída","Saldo Abastec.","Saldo Suprim.","Saldo Físico","Diferença","Status","Observação"], linhas, [4,5,6,7,8,9]);
+  modeloTabela(m, null, ["Unidade","Produto","Tanque(s)","Data","Entrada","Saída","Saldo Abastec.","Saldo Suprim.","Saldo Físico","Diferença","Status","Observação"], linhas, [4,5,6,7,8,9],
+    [55,38,42,42,40,40,48,48,48,55,48,'*']); // larguras fixas pras colunas numéricas/curtas, Observação ocupa o resto — evita texto espremido/cortado num relatório de 12 colunas
   return m;
 }
 function modeloDivergencias(){
@@ -3080,7 +3178,7 @@ function modeloParaPdfContent(m){
   m.blocos.forEach(b=>{
     if(b.tipo==="texto"){ content.push({text:b.texto, fontSize:9.5, color:PDFC.GRAY, margin:[0,6,0,6]}); return; }
     if(b.titulo) content.push(pdfH2(b.titulo));
-    content.push(pdfStyledTable(b.headers, b.linhas, { numCols:b.numCols }));
+    content.push(pdfStyledTable(b.headers, b.linhas, { numCols:b.numCols, widths:b.widths }));
   });
   return content;
 }
@@ -3636,7 +3734,10 @@ function renderCadastro(){
             <div class="t-num">Tanque ${t.numero}${tAtiva?"":' <span class="badge-inativo">Inativo</span>'}</div>
             <div class="t-meta">${t.produto} · ${fmtL(t.capacidade)} cap.</div>
             <div class="t-meta">Saldo físico inicial ${fmtL(t.saldoInicial)} em ${fmtDate(t.dataInicio)}</div>
-            <button type="button" class="tank-chip-toggle" data-toggle-tanque="${u.id}|${t.id}">${tAtiva?"Desativar":"Reativar"}</button>
+            <div class="tank-chip-actions">
+              <button type="button" class="tank-chip-toggle" data-edit-tanque="${u.id}|${t.id}">Editar</button>
+              <button type="button" class="tank-chip-toggle" data-toggle-tanque="${u.id}|${t.id}">${tAtiva?"Desativar":"Reativar"}</button>
+            </div>
           </div>`;
         }).join("")}
         <div class="tank-chip add-tank-chip" data-add-tanque="${u.id}">+ Adicionar tanque</div>
@@ -3651,7 +3752,10 @@ function renderCadastro(){
             <button class="tank-chip-remove" data-del-bomba="${u.id}|${b.id}" title="Remover bomba" aria-label="Remover bomba">&times;</button>
             <div class="t-num">Bomba ${b.numero}${bAtiva?"":' <span class="badge-inativo">Inativo</span>'}</div>
             <div class="t-meta">Tanque(s): ${nomesTanques||"nenhum vinculado"}</div>
-            <button type="button" class="tank-chip-toggle" data-toggle-bomba="${u.id}|${b.id}">${bAtiva?"Desativar":"Reativar"}</button>
+            <div class="tank-chip-actions">
+              <button type="button" class="tank-chip-toggle" data-edit-bomba="${u.id}|${b.id}">Editar</button>
+              <button type="button" class="tank-chip-toggle" data-toggle-bomba="${u.id}|${b.id}">${bAtiva?"Desativar":"Reativar"}</button>
+            </div>
           </div>`;
         }).join("")}
         <div class="tank-chip add-tank-chip" data-add-bomba="${u.id}">+ Adicionar bomba</div>
@@ -3663,6 +3767,26 @@ function renderCadastro(){
   });
   wrap.querySelectorAll("[data-add-bomba]").forEach(el=>{
     el.addEventListener("click",()=>{ if(!requireAdmin()) return; openNovaBomba(el.dataset.addBomba); });
+  });
+  wrap.querySelectorAll("[data-edit-tanque]").forEach(el=>{
+    el.addEventListener("click", (e)=>{
+      e.stopPropagation();
+      if(!requireAdmin()) return;
+      const [unidadeId, tanqueId] = el.dataset.editTanque.split("|");
+      const u = unidades.find(x=>x.id===unidadeId); if(!u) return;
+      const t = u.tanques.find(x=>x.id===tanqueId); if(!t) return;
+      openNovoTanque(unidadeId, t);
+    });
+  });
+  wrap.querySelectorAll("[data-edit-bomba]").forEach(el=>{
+    el.addEventListener("click", (e)=>{
+      e.stopPropagation();
+      if(!requireAdmin()) return;
+      const [unidadeId, bombaId] = el.dataset.editBomba.split("|");
+      const u = unidades.find(x=>x.id===unidadeId); if(!u) return;
+      const b = bombasDaUnidade(u).find(x=>x.id===bombaId); if(!b) return;
+      openNovaBomba(unidadeId, b);
+    });
   });
   wrap.querySelectorAll("[data-del-bomba]").forEach(el=>{
     el.addEventListener("click", async (e)=>{
@@ -4080,27 +4204,29 @@ function openNovaUnidade(){
     showToast("Unidade criada.");
   };
 }
-function openNovoTanque(unidadeId){
+function openNovoTanque(unidadeId, editTanque){
   if(!requireAdmin()) return;
   const u = unidades.find(x=>x.id===unidadeId); if(!u) return;
+  const isEdit = !!editTanque;
   document.getElementById("tModalBackdrop")?.remove();
   const html = `
     <div class="modal-backdrop" id="tModalBackdrop">
       <div class="modal" style="max-width:460px">
-        <div class="modal-head"><h2>Novo tanque — ${u.nome}</h2><button class="close-x" id="tModalClose">&times;</button></div>
+        <div class="modal-head"><h2>${isEdit?"Editar tanque":"Novo tanque"} — ${u.nome}</h2><button class="close-x" id="tModalClose">&times;</button></div>
         <div class="modal-body">
           <div class="grid2">
-            <div class="field"><label>Numeração do tanque</label><input id="tNumero" placeholder="ex: 053"></div>
+            <div class="field"><label>Numeração do tanque</label><input id="tNumero" placeholder="ex: 053" value="${isEdit?escapeHtml(editTanque.numero):""}"></div>
             <div class="field"><label>Produto</label><select id="tProduto"><option value="S10">S10</option><option value="S500">S500</option></select></div>
           </div>
           <div class="grid2">
-            <div class="field"><label>Capacidade (l)</label><input id="tCap" type="number" value="15000"></div>
-            <div class="field"><label>Saldo físico inicial (l)</label><input id="tSaldo" type="number" value="0"></div>
+            <div class="field"><label>Capacidade (l)</label><input id="tCap" type="number" value="${isEdit?editTanque.capacidade:15000}"></div>
+            <div class="field"><label>Saldo físico inicial (l)</label><input id="tSaldo" type="number" value="${isEdit?editTanque.saldoInicial:0}"></div>
           </div>
-          <div class="field"><label>Data de início do saldo</label><input id="tData" type="date" value="${dstr(new Date())}"></div>
+          <div class="field"><label>Data de início do saldo</label><input id="tData" type="date" value="${isEdit?editTanque.dataInicio:dstr(new Date())}"></div>
           <p class="hint" style="margin:6px 0 0">O saldo digitado aqui é o saldo FÍSICO (régua) do tanque nessa data — a partir dele, o sistema calcula tanto o saldo de Abastecimento quanto o de Suprimento (bomba) do tanque, inclusive quando ele compartilha bomba com outro tanque.</p>
+          ${isEdit?`<p class="hint" style="margin:6px 0 0;color:var(--warn)">Mudar o saldo físico inicial ou a data aqui recalcula o histórico desse tanque a partir desse ponto — use com cuidado se já houver lançamentos.</p>`:""}
         </div>
-        <div class="modal-foot"><button class="btn btn-ghost" id="tCancel">Cancelar</button><button class="btn btn-primary" id="tSave">Adicionar tanque</button></div>
+        <div class="modal-foot"><button class="btn btn-ghost" id="tCancel">Cancelar</button><button class="btn btn-primary" id="tSave">${isEdit?"Salvar alterações":"Adicionar tanque"}</button></div>
       </div>
     </div>`;
   document.body.insertAdjacentHTML("beforeend", html);
@@ -4108,21 +4234,24 @@ function openNovoTanque(unidadeId){
   document.getElementById("tModalClose").onclick = ()=>bd.remove();
   document.getElementById("tCancel").onclick = ()=>bd.remove();
   bd.addEventListener("click",(e)=>{ if(e.target===bd) bd.remove(); });
+  if(isEdit) document.getElementById("tProduto").value = editTanque.produto;
   document.getElementById("tSave").onclick = async ()=>{
     const numero = document.getElementById("tNumero").value.trim();
     if(!numero){ showToast("Informe a numeração do tanque."); return; }
-    const novo = {
-      id: unidadeId+"-t"+(u.tanques.length+1),
+    const dados = {
       numero, produto: document.getElementById("tProduto").value,
       capacidade: Number(document.getElementById("tCap").value||0),
       saldoInicial: Number(document.getElementById("tSaldo").value||0),
       dataInicio: document.getElementById("tData").value,
-      ativo: true,
     };
-    u.tanques.push(novo);
+    if(isEdit){
+      Object.assign(editTanque, dados);
+    } else {
+      u.tanques.push({ id: unidadeId+"-t"+(u.tanques.length+1), ...dados, ativo: true });
+    }
     await saveUnidade(u);
     bd.remove(); renderCadastro();
-    showToast("Tanque adicionado.");
+    showToast(isEdit?"Tanque atualizado.":"Tanque adicionado.");
   };
 }
 // clicar num dia do calendário de aferição: se a unidade tem bomba cadastrada,
@@ -4286,25 +4415,26 @@ function openNovaAfericaoBomba(unidadeId, bombaId, prefillData){
     showToast("Aferição de bomba registrada.");
   };
 }
-function openNovaBomba(unidadeId){
+function openNovaBomba(unidadeId, editBomba){
   if(!requireAdmin()) return;
   const u = unidades.find(x=>x.id===unidadeId); if(!u) return;
+  const isEdit = !!editBomba;
   document.getElementById("bModalBackdrop")?.remove();
   const html = `
     <div class="modal-backdrop" id="bModalBackdrop">
       <div class="modal" style="max-width:460px">
-        <div class="modal-head"><h2>Nova bomba — ${u.nome}</h2><button class="close-x" id="bModalClose">&times;</button></div>
+        <div class="modal-head"><h2>${isEdit?"Editar bomba":"Nova bomba"} — ${u.nome}</h2><button class="close-x" id="bModalClose">&times;</button></div>
         <div class="modal-body">
-          <div class="field"><label>Numeração da bomba</label><input id="bNumero" placeholder="ex: 01"></div>
+          <div class="field"><label>Numeração da bomba</label><input id="bNumero" placeholder="ex: 01" value="${isEdit?escapeHtml(editBomba.numero):""}"></div>
           <div class="field">
             <label>Tanques abastecidos por esta bomba</label>
             <p class="hint" style="margin:2px 0 8px">Marque todos os tanques atendidos por esta bomba. Isso define como o Suprimento é somado: tanques na mesma bomba têm o saldo combinado; tanques do mesmo produto que NÃO estão aqui ficam com saldo separado.</p>
             ${u.tanques.length
-              ? u.tanques.map(t=>`<label class="checkbox-row"><input type="checkbox" value="${t.id}"> Tanque ${t.numero} · ${t.produto}</label>`).join("")
+              ? u.tanques.map(t=>`<label class="checkbox-row"><input type="checkbox" value="${t.id}"${isEdit && editBomba.tanqueIds.includes(t.id)?" checked":""}> Tanque ${t.numero} · ${t.produto}</label>`).join("")
               : '<p class="muted">Esta unidade ainda não tem tanque cadastrado.</p>'}
           </div>
         </div>
-        <div class="modal-foot"><button class="btn btn-ghost" id="bCancel">Cancelar</button><button class="btn btn-primary" id="bSave">Adicionar bomba</button></div>
+        <div class="modal-foot"><button class="btn btn-ghost" id="bCancel">Cancelar</button><button class="btn btn-primary" id="bSave">${isEdit?"Salvar alterações":"Adicionar bomba"}</button></div>
       </div>
     </div>`;
   document.body.insertAdjacentHTML("beforeend", html);
@@ -4317,11 +4447,15 @@ function openNovaBomba(unidadeId){
     if(!numero){ showToast("Informe a numeração da bomba."); return; }
     const tanqueIds = [...document.querySelectorAll("#bModalBackdrop .checkbox-row input:checked")].map(c=>c.value);
     u.bombas = bombasDaUnidade(u);
-    const novo = { id: unidadeId+"-b"+(u.bombas.length+1), numero, tanqueIds, ativo: true };
-    u.bombas.push(novo);
+    if(isEdit){
+      editBomba.numero = numero;
+      editBomba.tanqueIds = tanqueIds;
+    } else {
+      u.bombas.push({ id: unidadeId+"-b"+(u.bombas.length+1), numero, tanqueIds, ativo: true });
+    }
     await saveUnidade(u);
     bd.remove(); renderCadastro();
-    showToast("Bomba adicionada.");
+    showToast(isEdit?"Bomba atualizada.":"Bomba adicionada.");
   };
 }
 
@@ -4917,7 +5051,6 @@ document.getElementById("logoutBtn").addEventListener("click",()=>{
 });
 document.getElementById("openIncluirSaldo").addEventListener("click",()=>openIncluirSaldo());
 document.getElementById("openNovaUnidade").addEventListener("click", openNovaUnidade);
-document.getElementById("openLinkAfericaoGlobal").addEventListener("click", openLinkAfericaoGlobal);
 document.getElementById("openLinkAfericaoGlobal2").addEventListener("click", openLinkAfericaoGlobal);
 document.getElementById("refreshDataBtn").addEventListener("click", refreshAllData);
 document.getElementById("openNovoUsuario").addEventListener("click", openNovoUsuario);
@@ -4968,7 +5101,7 @@ document.querySelectorAll(".rpt-type-card").forEach(card=>{
 document.getElementById("rptImprimir").addEventListener("click", ()=>{
   if(!ultimoRelatorioModelo) return;
   const slug = (reportTipo||"relatorio");
-  pdfDownload(pdfDoc(modeloParaPdfContent(ultimoRelatorioModelo)), `relatorio-${slug}-${dstr(new Date())}.pdf`);
+  pdfDownload(pdfDoc(modeloParaPdfContent(ultimoRelatorioModelo), precisaPaisagem(ultimoRelatorioModelo)?"landscape":"portrait"), `relatorio-${slug}-${dstr(new Date())}.pdf`);
 });
 document.getElementById("rPeriodo").addEventListener("change", (e)=>{
   aplicarPeriodoPreset(e.target.value);
