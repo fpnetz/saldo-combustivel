@@ -239,6 +239,13 @@ header.top .title{font-weight:600;color:var(--muted);font-size:14px}
 .unit-logo-row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
 .unit-logo-thumb{height:22px;max-width:120px;object-fit:contain;display:block}
 .btn-mini{padding:4px 10px;font-size:12px}
+.doc-upload-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px}
+.doc-list{display:flex;flex-direction:column;gap:8px}
+.doc-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 14px;background:var(--bg)}
+.doc-row-main{display:flex;flex-direction:column;gap:2px}
+.doc-row-main a{color:var(--ink);text-decoration:none}
+.doc-row-main a:hover{text-decoration:underline}
+.doc-row-main .muted{font-size:12px}
 .userbox{display:flex;align-items:center;gap:8px;font-size:13px}
 .userbox b{font-weight:600}
 
@@ -333,6 +340,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .diff-pend{color:var(--pend)}
 .saida-val{font-weight:700}
 .att-chip{display:inline-flex;gap:4px;color:var(--muted);font-size:12px}
+.tipo-af{color:var(--teal-ink);font-weight:600}
+.tipo-af-tag{display:inline-block;font-size:11px;font-weight:700;color:var(--teal-ink);background:color-mix(in srgb, var(--teal) 14%, var(--paper));padding:2px 8px;border-radius:999px}
 .empty{padding:48px 16px;text-align:center;color:var(--muted)}
 .empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
 
@@ -695,6 +704,10 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .af-pub-wrap{max-width:640px;margin:0 auto;padding:28px 16px 60px}
 .af-pub-card{background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:24px 22px;margin-bottom:16px;font-family:"IBM Plex Sans",system-ui,sans-serif}
 .af-pub-card .field{margin-bottom:12px}
+.af-done{text-align:center;padding:12px 4px}
+.af-done-check{width:56px;height:56px;line-height:56px;border-radius:50%;background:color-mix(in srgb, var(--ok) 16%, var(--paper));color:var(--ok);font-size:28px;font-weight:700;margin:0 auto 14px}
+.af-done h2{margin:0 0 6px;font-size:19px}
+.af-done-msg{margin-top:14px;padding:12px 14px;border-radius:10px;background:color-mix(in srgb, var(--teal) 10%, var(--paper));color:var(--ink);font-size:14px}
 .af-combo-list{
   position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--paper);border:1px solid var(--line);
   border-radius:8px;box-shadow:var(--shadow);max-height:260px;overflow:auto;z-index:5;
@@ -862,7 +875,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       <div class="filters">
         <div class="field grow2">
           <label>Buscar</label>
-          <input id="fBusca" placeholder="unidade ou tanque...">
+          <input id="fBusca" placeholder="unidade, tanque ou responsável...">
         </div>
         <div class="field">
           <label>Unidade</label>
@@ -1149,11 +1162,17 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       </div>
 
       <div class="boletim">
-        <div class="boletim-head"><h2>Procedimentos internos</h2></div>
-        <div class="empty">
-          <b>Em breve</b>
-          Documentos e procedimentos internos da empresa vão aparecer aqui.
+        <div class="boletim-head"><h2>Procedimentos e formulários</h2></div>
+        <p class="hint" style="margin:0 0 12px">Anexe procedimentos internos, formulários ou modelos aqui — fica salvo com o nome e a data do envio.</p>
+        <div class="doc-upload-row">
+          <div class="field" style="flex:1 1 260px;min-width:200px;margin:0">
+            <label for="docNome">Nome do documento</label>
+            <input id="docNome" placeholder="ex: Procedimento de aferição quinzenal">
+          </div>
+          <label class="upload-box" id="docAnexoBox" style="flex:1 1 220px;min-width:180px"><span class="upload-box-text">Arquivo</span><div class="upload-box-preview"></div><input type="file" id="docAnexo"></label>
+          <button class="btn btn-add" id="docSalvar" type="button">+ Salvar documento</button>
         </div>
+        <div id="documentosList"></div>
       </div>
     </section>
   </main>
@@ -1244,13 +1263,15 @@ let afericoesBomba = [];
 // por grupo/dia. id = unidadeId+"__"+grupoKey+"__"+data (upsert, igual ao lançamento).
 // [{id,unidadeId,grupoKey,tanqueIds,data,supEntrada,supSaida,obs,criadoPor,criadoEm}]
 let suprimentos = [];
+// documentos/procedimentos anexados na Documentação: [{id,nome,arquivoNome,assetId,criadoPor,criadoEm}]
+let documentos = [];
 let configGeral = { logoPadraoDataUrl: null }; // logo padrão do sistema, editável (Cadastro)
 let dbNs = null, assetsNs = null, dbAvailable = false;
 let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-28-v62";
+const APP_BUILD = "2026-10-28-v63";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1330,6 +1351,10 @@ async function initData(){
     if(spRes && spRes.docs && spRes.docs.length){
       suprimentos = spRes.docs.filter(d=>d.exists).map(d=>d.data()).filter(Boolean);
     }
+    const docRes = await dbNs.collection("documentos").get();
+    if(docRes && docRes.docs && docRes.docs.length){
+      documentos = docRes.docs.filter(d=>d.exists).map(d=>d.data()).filter(Boolean);
+    }
     try{
       const cgDoc = await dbNs.doc("config/geral").get();
       if(cgDoc && cgDoc.exists && cgDoc.data()) configGeral = Object.assign({logoPadraoDataUrl:null}, cgDoc.data());
@@ -1361,6 +1386,54 @@ async function excluirLancamento(id){
   if(!dbAvailable || !dbNs){ showToast("Sem conexão com o banco — exclusão aplicada só nesta sessão."); return; }
   try{ await dbNs.doc("lancamentos/"+id).delete(); showToast("Lançamento excluído."); }
   catch(e){ console.error("[saldo] excluirLancamento falhou:", e); showToast("Não foi possível excluir no servidor (" + (e && e.message ? e.message : "erro") + ")."); }
+}
+async function salvarDocumento(nome, file){
+  if(!assetsNs){ showToast("Anexos indisponíveis agora — recarregue a página e tente de novo."); return; }
+  let assetId = null;
+  try{ const r = await assetsNs.upload(file); assetId = r.id; }
+  catch(e){ console.error("[saldo] falha ao enviar documento:", e); showToast("Não foi possível enviar o arquivo."); return; }
+  const doc = {
+    id: "doc-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7),
+    nome, arquivoNome:file.name, assetId,
+    criadoPor: session.nome, criadoEm: new Date().toISOString(),
+  };
+  documentos = [doc, ...documentos];
+  if(dbNs){
+    try{ await dbNs.doc("documentos/"+doc.id).set(doc); }
+    catch(e){ console.error("[saldo] falha ao salvar documento:", e); showToast("Enviado, mas não foi possível salvar no servidor."); }
+  }
+  renderDocumentos();
+  showToast("Documento salvo.");
+}
+async function excluirDocumento(id){
+  if(!requireAdmin()) return;
+  if(!(await askConfirm("Remover este documento?"))) return;
+  documentos = documentos.filter(x=>x.id!==id);
+  renderDocumentos();
+  if(dbNs){
+    try{ await dbNs.doc("documentos/"+id).delete(); }
+    catch(e){ console.error("[saldo] falha ao excluir documento:", e); }
+  }
+}
+function renderDocumentos(){
+  const el = document.getElementById("documentosList");
+  if(!el) return;
+  if(!documentos.length){
+    el.innerHTML = `<div class="empty" style="margin-top:14px"><b>Nenhum documento ainda</b>Anexe procedimentos, formulários ou modelos acima.</div>`;
+    return;
+  }
+  const lista = documentos.slice().sort((a,b)=> (b.criadoEm||"").localeCompare(a.criadoEm||""));
+  el.innerHTML = `<div class="doc-list">${lista.map(d=>`
+    <div class="doc-row">
+      <div class="doc-row-main">
+        <a href="${d.assetId}" target="_blank" rel="noopener"><b>${escapeHtml(d.nome)}</b></a>
+        <span class="muted">${escapeHtml(d.arquivoNome||"")} · salvo em ${fmtDate(d.criadoEm.slice(0,10))}${d.criadoPor?" por "+escapeHtml(d.criadoPor):""}</span>
+      </div>
+      ${session.role==="admin"?`<button type="button" class="btn btn-ghost btn-mini" data-del-doc="${d.id}">remover</button>`:""}
+    </div>`).join("")}</div>`;
+  el.querySelectorAll("[data-del-doc]").forEach(btn=>{
+    btn.addEventListener("click", ()=>excluirDocumento(btn.dataset.delDoc));
+  });
 }
 async function saveUnidade(u){
   if(!requireAdmin()) return;
@@ -1689,6 +1762,20 @@ function gruposDoDia(){
     };
   }).filter(Boolean);
 }
+// um lançamento é "aferição pura" quando não tem nenhuma movimentação (entrada/saída/saldo
+// manual) — só a leitura do saldo físico — seja feito pelo link público ou lançado manualmente
+// no admin; usado pra diferenciar na Consulta "Aferição" de um lançamento normal de movimento,
+// sem mexer no cálculo de divergência (que continua o mesmo pros dois casos)
+function isLancAfericaoPura(l){
+  const semMovimento = !(l.abEntrada) && !(l.abSaida) && (l.abSaldoManual===null || l.abSaldoManual===undefined || l.abSaldoManual==="");
+  return semMovimento && l.saldoFisico!==null && l.saldoFisico!==undefined;
+}
+function grupoOrigemAfericao(g){
+  return g.lancDoDia.length>0 && g.lancDoDia.every(isLancAfericaoPura);
+}
+function grupoResponsaveisAfericao(g){
+  return [...new Set(g.lancDoDia.map(l=>l.responsavelNome).filter(Boolean))].join(", ");
+}
 
 /* ===================== Formatting ===================== */
 const fmtNum = new Intl.NumberFormat("pt-BR",{maximumFractionDigits:0});
@@ -1712,7 +1799,7 @@ function filteredRows(){
   const ate = document.getElementById("fAte").value;
   return allRows().filter(r=>{
     if(session.role==="controlador" && r.u.id!==session.unidadeId) return false;
-    if(busca && !(r.u.nome.toLowerCase().includes(busca) || r.tanques.some(t=>t.numero.toLowerCase().includes(busca)))) return false;
+    if(busca && !(r.u.nome.toLowerCase().includes(busca) || r.tanques.some(t=>t.numero.toLowerCase().includes(busca)) || r.lancDoDia.some(l=>l.responsavelNome && l.responsavelNome.toLowerCase().includes(busca)))) return false;
     if(unidadeId && r.u.id!==unidadeId) return false;
     if(produto && r.produto!==produto) return false;
     if(status && r.cls.status!==status) return false;
@@ -1748,8 +1835,11 @@ function rowHtml(r){
     ? `${r.tanques.length} tanque${r.tanques.length>1?"s":""}`
     : `bomba${tanquesComMovimento.length>1?"s":""} ${tanquesComMovimento.map(t=>t.numero).join(", ")} de ${r.tanques.length}`;
   const fisicoTxt = r.saldoFisico===null ? "Aguardando" : fmtL(r.saldoFisico);
+  const ehAfericao = grupoOrigemAfericao(r);
+  const responsaveis = ehAfericao ? grupoResponsaveisAfericao(r) : "";
+  const tipoSub = ehAfericao ? ` · <span class="tipo-af">Aferição${responsaveis?" — "+escapeHtml(responsaveis):""}</span>` : "";
   return `<tr data-id="${r.id}">
-      <td class="unit-cell"><b>${r.u.nome}</b><span>${r.produto} · ${tanquesTxt} · ${fmtL(r.tanques.reduce((s,t)=>s+(t.capacidade||0),0))} cap.${r.oc?` · ${fmtPct.format(r.oc.pct)}% ocupado`:""}</span></td>
+      <td class="unit-cell"><b>${r.u.nome}</b><span>${r.produto} · ${tanquesTxt} · ${fmtL(r.tanques.reduce((s,t)=>s+(t.capacidade||0),0))} cap.${r.oc?` · ${fmtPct.format(r.oc.pct)}% ocupado`:""}${tipoSub}</span></td>
       <td>${fmtDate(r.data)}</td>
       <td class="num">${r.entradaTotal?fmtL(r.entradaTotal):"—"}</td>
       <td class="num saida-val">${r.saidaTotal?fmtL(r.saidaTotal):"—"}</td>
@@ -1932,6 +2022,23 @@ function janelaAtual(hojeIso, uf, cidade){
   const fim = empurrarSeFeriado(isoYMD(y,m,ultimoDia), uf, cidade);
   return { ano:y, mes:m, numero:2, inicio: isoYMD(y,m,20), fim, ativa:true,
     label:`2ª quinzena (20 a ${ultimoDia}/${pad2(m)})` };
+}
+// janela seguinte à que acabou de ser cumprida (usada pra avisar "próxima aferição até ..." logo
+// depois do envio): se a aferição foi feita na 1ª quinzena, a próxima é a 2ª quinzena do mesmo
+// mês; se foi na 2ª quinzena, a próxima é a 1ª quinzena do mês seguinte
+function proximaJanelaApos(dataIso, uf, cidade){
+  const atual = janelaAtual(dataIso, uf, cidade);
+  if(atual.numero===1){
+    const ultimoDia = new Date(Date.UTC(atual.ano, atual.mes, 0)).getUTCDate();
+    const fim = empurrarSeFeriado(isoYMD(atual.ano, atual.mes, ultimoDia), uf, cidade);
+    return { ano:atual.ano, mes:atual.mes, numero:2, inicio: isoYMD(atual.ano,atual.mes,20), fim,
+      label:`2ª quinzena (20 a ${ultimoDia}/${pad2(atual.mes)})` };
+  }
+  let nm = atual.mes+1, ny = atual.ano;
+  if(nm>12){ nm=1; ny++; }
+  const fim = empurrarSeFeriado(isoYMD(ny,nm,10), uf, cidade);
+  return { ano:ny, mes:nm, numero:1, inicio: isoYMD(ny,nm,1), fim,
+    label:`1ª quinzena (1 a 10/${pad2(nm)})` };
 }
 function tanqueAferidoNaJanela(tanque, janela){
   return lancamentosDoTanque(tanque.id).some(l=> l.data>=janela.inicio && l.data<=janela.fim && l.saldoFisico!==null && l.saldoFisico!==undefined);
@@ -2931,6 +3038,10 @@ async function gerarComprovantePdf(c, u, listaLancamentos){
   kpiItems.push(["Tanques", c.tanques.length, PDFC.TEAL]);
   kpiItems.push(["Bombas aferidas", c.bombas.length, PDFC.BLUE]);
   content.push(pdfKpiRow(kpiItems));
+  if(c.proximaAfericaoVencimento){
+    content.push({ text:`Próxima aferição: até ${fmtDate(c.proximaAfericaoVencimento)} (${c.proximaAfericaoLabel||""})`,
+      fontSize:9.5, bold:true, color:PDFC.TEAL_DARK, margin:[0,2,0,10] });
+  }
   content.push(pdfH2("Aferição de tanque (saldo físico)"));
   content.push(pdfStyledTable(
     ["Tanque","Combustível","Saldo físico (l)","Diferença (calc. × físico)","Foto da régua"],
@@ -2989,12 +3100,18 @@ async function gerarComprovantePdf(c, u, listaLancamentos){
     content.push(pdfH2("Observação"));
     content.push({ text:c.observacao, fontSize:9.5, color:PDFC.INK, margin:[0,0,0,10] });
   }
-  if(c.anexosLivres.length){
-    content.push(pdfH2("Anexos"));
-    for(const a of c.anexosLivres){
-      const img = await urlParaImagemDataUrl(a.assetId);
-      if(img) content.push({ stack:[ { image:img, width:220, margin:[0,2,0,3] }, { text:a.nome, fontSize:7.5, color:PDFC.GRAY } ], margin:[0,0,0,10] });
-      else content.push({ text:a.nome, fontSize:9.5, color:PDFC.GRAY, margin:[0,0,0,4] });
+  // relatório de aferição anexado: quando é uma foto, ocupa uma página inteira própria no
+  // comprovante (pageBreak antes do título); quando é outro tipo de arquivo (pdfmake só
+  // embute imagem), fica só a referência — o arquivo original continua salvo à parte
+  for(const a of c.anexosLivres){
+    const img = await urlParaImagemDataUrl(a.assetId);
+    if(img){
+      content.push({ text:"Relatório de aferição (anexo)", fontSize:12, bold:true, color:PDFC.INK, pageBreak:"before", margin:[0,0,0,10] });
+      content.push({ image:img, width:500, margin:[0,0,0,6] });
+      content.push({ text:a.nome, fontSize:8, color:PDFC.GRAY });
+    } else {
+      content.push(pdfH2("Relatório de aferição (anexo)"));
+      content.push({ text:`Arquivo anexado: ${a.nome} (não é possível pré-visualizar este tipo de arquivo no PDF).`, fontSize:9.5, color:PDFC.GRAY, margin:[0,0,0,4] });
     }
   }
   pdfDownload(pdfDoc(content), `comprovante-afericao-${c.protocolo}.pdf`);
@@ -3346,26 +3463,31 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
             <div class="field"><label>Saldo físico (régua)</label><input type="number" id="mFisico" placeholder="ex: 9200" min="0"></div>
           </div>
 
-          <div class="section-label">Movimento do dia (Abastecimento)</div>
-          <div class="radio-row" id="mHouve">
-            <div class="radio-opt active" data-v="nao">Sem entrada hoje</div>
-            <div class="radio-opt" data-v="sim">Teve entrada (nota)</div>
-          </div>
-          <div class="grid2">
-            <div class="field" id="mEntradaWrap" hidden><label>Entrada Abastecimento (l)</label><input type="number" id="mEntrada" value="0" min="0"></div>
-            <div class="field"><label>Saída Abastecimento (l)</label><input type="number" id="mSaida" value="0" min="0"></div>
-          </div>
-          <div class="field"><label>Saldo Abastecimento (l)</label><input type="number" id="mAbSaldo" placeholder="obrigatório"></div>
-          <p class="hint" style="margin:-4px 0 4px">Esse valor vira o saldo do sistema direto (igual ao saldo físico) — a Entrada/Saída acima é só observação/justificativa, não soma no cálculo.</p>
+          <label class="checkbox-row" style="margin:2px 0 14px"><input type="checkbox" id="mSoAfericao"> Somente aferição física (não lançar Abastecimento/Suprimento — só confere o saldo físico contra o que já está no sistema)</label>
 
-          <div class="section-label">Suprimento (bomba)</div>
-          <p class="hint" style="margin:-4px 0 10px" id="mSupHint">Repete automaticamente a Entrada/Saída do Abastecimento acima — só mude se o Suprimento da bomba foi diferente.</p>
-          <div class="grid2">
-            <div class="field"><label>Entrada de Suprimento (l)</label><input type="number" id="mSupEntrada" value="0" min="0"></div>
-            <div class="field"><label>Saída de Suprimento (l)</label><input type="number" id="mSupSaida" value="0" min="0"></div>
+          <div id="mMovimentoWrap">
+            <div class="section-label">Movimento do dia (Abastecimento)</div>
+            <div class="radio-row" id="mHouve">
+              <div class="radio-opt active" data-v="nao">Sem entrada hoje</div>
+              <div class="radio-opt" data-v="sim">Teve entrada (nota)</div>
+            </div>
+            <div class="grid2">
+              <div class="field" id="mEntradaWrap" hidden><label>Entrada Abastecimento (l)</label><input type="number" id="mEntrada" value="0" min="0"></div>
+              <div class="field"><label>Saída Abastecimento (l)</label><input type="number" id="mSaida" value="0" min="0"></div>
+            </div>
+            <div class="field"><label>Saldo Abastecimento (l)</label><input type="number" id="mAbSaldo" placeholder="obrigatório"></div>
+            <p class="hint" style="margin:-4px 0 4px">Esse valor vira o saldo do sistema direto (igual ao saldo físico) — a Entrada/Saída acima é só observação/justificativa, não soma no cálculo.</p>
+
+            <div class="section-label">Suprimento (bomba)</div>
+            <p class="hint" style="margin:-4px 0 10px" id="mSupHint">Repete automaticamente a Entrada/Saída do Abastecimento acima — só mude se o Suprimento da bomba foi diferente.</p>
+            <div class="grid2">
+              <div class="field"><label>Entrada de Suprimento (l)</label><input type="number" id="mSupEntrada" value="0" min="0"></div>
+              <div class="field"><label>Saída de Suprimento (l)</label><input type="number" id="mSupSaida" value="0" min="0"></div>
+            </div>
+            <div class="field"><label>Saldo Suprimento (l)</label><input type="number" id="mSupSaldo" placeholder="obrigatório"></div>
+            <p class="hint" style="margin:-4px 0 4px">Mesmo princípio: vira o saldo do Suprimento direto — a Entrada/Saída acima vira só observação.</p>
           </div>
-          <div class="field"><label>Saldo Suprimento (l)</label><input type="number" id="mSupSaldo" placeholder="obrigatório"></div>
-          <p class="hint" style="margin:-4px 0 4px">Mesmo princípio: vira o saldo do Suprimento direto — a Entrada/Saída acima vira só observação.</p>
+          <p class="hint" id="mSoAfericaoHint" hidden style="margin:-4px 0 14px">Só o saldo físico será registrado — o saldo Abastecimento/Suprimento continua o mesmo que já estava calculado, e na Consulta este lançamento aparece com a etiqueta "Aferição".</p>
 
           <div class="section-label">Anexos</div>
           <div class="upload-row">
@@ -3404,6 +3526,22 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     if(prefillTanqueId) mTanque.value = prefillTanqueId;
     updateSupHint(); updateSaldoAtualBox(); updateSupFields(); updatePreview();
   }
+  const mSoAfericao = document.getElementById("mSoAfericao");
+  mSoAfericao.addEventListener("change", ()=>{
+    const so = mSoAfericao.checked;
+    document.getElementById("mMovimentoWrap").hidden = so;
+    document.getElementById("mSoAfericaoHint").hidden = !so;
+    if(so){
+      // zera/limpa os campos de movimento — nesse modo eles não são enviados
+      document.getElementById("mSaida").value = 0;
+      document.getElementById("mEntrada").value = 0;
+      document.getElementById("mAbSaldo").value = "";
+      document.getElementById("mSupEntrada").value = 0;
+      document.getElementById("mSupSaida").value = 0;
+      document.getElementById("mSupSaldo").value = "";
+    }
+    updatePreview();
+  });
   mUnidade.onchange = fillTanques;
   mTanque.onchange = ()=>{ updateSupHint(); updateSaldoAtualBox(); updateSupFields(); updatePreview(); };
   if(prefillTanqueId){
@@ -3613,11 +3751,16 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     if(!u){ showToast("Selecione a unidade."); return; }
     const data = document.getElementById("mData").value;
     if(!data){ showToast("Informe a data."); return; }
-    if(getAbSaldoManual()===null){ showToast("Informe o Saldo Abastecimento."); return; }
-    if(getSupSaldoManual()===null){ showToast("Informe o Saldo Suprimento."); return; }
+    const soAfericao = document.getElementById("mSoAfericao").checked;
+    if(soAfericao){
+      if(document.getElementById("mFisico").value===""){ showToast("Informe o Saldo físico (régua)."); return; }
+    } else {
+      if(getAbSaldoManual()===null){ showToast("Informe o Saldo Abastecimento."); return; }
+      if(getSupSaldoManual()===null){ showToast("Informe o Saldo Suprimento."); return; }
+    }
     saveBtn.disabled = true; saveBtn.textContent = "Salvando...";
     try{
-      const {abE, abS} = getMovimento();
+      const {abE, abS} = soAfericao ? {abE:0, abS:0} : getMovimento();
       const fisico = document.getElementById("mFisico").value===""? null : Number(document.getElementById("mFisico").value);
       const obs = document.getElementById("mObs").value.trim();
 
@@ -3644,19 +3787,22 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
       };
       await saveLancamento(l);
 
-      // Suprimento da bomba/grupo, lançado junto neste mesmo formulário.
-      const grupoIds = grupoDeTanques(u, t.id);
-      const grupoKey = grupoKeyDe(grupoIds);
-      const supE = Number(document.getElementById("mSupEntrada").value||0);
-      const supS = Number(document.getElementById("mSupSaida").value||0);
-      const supExistente = suprimentos.find(s=>s.unidadeId===u.id && s.grupoKey===grupoKey && s.data===data);
-      const s = {
-        id: supExistente ? supExistente.id : ("sup-"+u.id+"-"+grupoKey.replace(/,/g,"_")+"-"+data+"-"+Date.now().toString(36)),
-        unidadeId:u.id, grupoKey, tanqueIds:grupoIds, data,
-        supEntrada:supE, supSaida:supS, supSaldoManual:getSupSaldoManual(), obs,
-        criadoPor: session.nome, criadoEm: new Date().toISOString(),
-      };
-      await saveSuprimento(s);
+      // Suprimento da bomba/grupo, lançado junto neste mesmo formulário — pulado no modo
+      // "só aferição" (não mexe no que já estava lançado de Abastecimento/Suprimento).
+      if(!soAfericao){
+        const grupoIds = grupoDeTanques(u, t.id);
+        const grupoKey = grupoKeyDe(grupoIds);
+        const supE = Number(document.getElementById("mSupEntrada").value||0);
+        const supS = Number(document.getElementById("mSupSaida").value||0);
+        const supExistente = suprimentos.find(s=>s.unidadeId===u.id && s.grupoKey===grupoKey && s.data===data);
+        const s = {
+          id: supExistente ? supExistente.id : ("sup-"+u.id+"-"+grupoKey.replace(/,/g,"_")+"-"+data+"-"+Date.now().toString(36)),
+          unidadeId:u.id, grupoKey, tanqueIds:grupoIds, data,
+          supEntrada:supE, supSaida:supS, supSaldoManual:getSupSaldoManual(), obs,
+          criadoPor: session.nome, criadoEm: new Date().toISOString(),
+        };
+        await saveSuprimento(s);
+      }
       closeModal();
     }catch(e){
       console.error("[saldo] falha ao salvar lançamento:", e);
@@ -3702,6 +3848,8 @@ function blocosTanqueDetalhe(g, paraImpressao){
 }
 function detalheCorpoHtml(g, temExemplo){
   const supDoDia = suprimentos.find(s=>s.unidadeId===g.u.id && s.grupoKey===g.grupoKey && s.data===g.data);
+  const ehAfericao = grupoOrigemAfericao(g);
+  const responsaveis = ehAfericao ? grupoResponsaveisAfericao(g) : "";
   return `<p class="hint">${fmtDate(g.data)} · Resumo do dia · ${g.tanques.length} tanque${g.tanques.length>1?"s":""} ${temExemplo?'· <span class="badge-example">exemplo</span>':""}</p>
           <div class="calc-preview">
             <div class="row"><span>Entrada (total)</span><b class="num">${fmtL(g.entradaTotal)}</b></div>
@@ -3711,6 +3859,8 @@ function detalheCorpoHtml(g, temExemplo){
             ${supDoDia?`<div class="row"><span>Entrada / Saída Suprimento neste dia</span><b class="num">${fmtL(supDoDia.supEntrada)} / ${fmtL(supDoDia.supSaida)}</b></div>`:""}
             <div class="row"><span>Saldo Físico (total)</span><b class="num">${g.fisicoCompleto?fmtL(g.saldoFisico):"Aguardando leitura em todos os tanques"}</b></div>
             <div class="row"><span>Status</span>${badgeHtml(g.cls)}</div>
+            ${ehAfericao?`<div class="row"><span>Tipo</span><span class="tipo-af tipo-af-tag">Aferição</span></div>`:""}
+            ${responsaveis?`<div class="row"><span>Responsável pela aferição</span><b>${escapeHtml(responsaveis)}</b></div>`:""}
           </div>
           <div class="section-label" style="margin-top:18px">Detalhe por tanque</div>`;
 }
@@ -4691,7 +4841,7 @@ function setView(view){
   if(view==="usuarios") renderUsuarios();
   if(view==="panorama") renderPanorama();
   if(view==="afericao") renderAfericao();
-  if(view==="documentacao") renderTabelaPercentual();
+  if(view==="documentacao"){ renderTabelaPercentual(); renderDocumentos(); }
 }
 
 /* ===================== Login flow ===================== */
@@ -4735,7 +4885,7 @@ async function refreshAllData(){
     if(viewAtual==="usuarios") renderUsuarios();
     if(viewAtual==="panorama") renderPanorama();
     if(viewAtual==="afericao") renderAfericao();
-    if(viewAtual==="documentacao") renderTabelaPercentual();
+    if(viewAtual==="documentacao"){ renderTabelaPercentual(); renderDocumentos(); }
     showToast("Dados atualizados.");
   }catch(e){
     console.error("[saldo] refreshAllData falhou:", e);
@@ -4860,6 +5010,24 @@ function renderBombaDiffs(bombaId){
 function renderPublicAfericao(){
   const body = document.getElementById("afPubBody");
   const st = afPubState;
+
+  if(st.done){
+    const d = st.done;
+    body.innerHTML = `
+      <div class="af-done">
+        <div class="af-done-check">✓</div>
+        <h2>Aferição registrada!</h2>
+        <p class="hint">Obrigado, ${escapeHtml(d.nome)}. O comprovante em PDF de ${escapeHtml(d.unidadeNome)} foi baixado automaticamente.</p>
+        <div class="af-done-msg">Próxima aferição: até <b>${fmtDate(d.proximaVencimento)}</b> (${d.proximaLabel}).</div>
+        <button class="btn btn-primary" id="afPubNova" type="button" style="width:100%;margin-top:18px">Registrar outra aferição</button>
+      </div>`;
+    document.getElementById("afPubNova").addEventListener("click", ()=>{
+      afPubState = { unidadeId:null, bombaQtd:{}, bombaDiffs:{} };
+      renderPublicAfericao();
+    });
+    return;
+  }
+
   const u = st.unidadeId ? unidades.find(x=>x.id===st.unidadeId) : null;
 
   let html = `
@@ -4908,7 +5076,8 @@ function renderPublicAfericao(){
     <div class="section-label">Observação e anexos</div>
     <div class="field"><label>Observação <span class="muted">(opcional)</span></label><textarea id="afPubObs" rows="3" placeholder="Qualquer informação relevante sobre a aferição..."></textarea></div>
     <div class="upload-row">
-      <label class="upload-box" id="afPubAnexoBox"><span class="upload-box-text">Anexo livre (opcional — foto, vídeo até 15 MB ou documento)</span><div class="upload-box-preview"></div><input type="file" id="afPubAnexo"></label>
+      <label class="upload-box" id="afPubAnexoBox"><span class="upload-box-text">Relatório de aferição — foto ou documento (opcional, até 15 MB)</span><div class="upload-box-preview"></div><input type="file" id="afPubAnexo"></label>
+      <p class="hint" style="margin-top:-6px">Se anexar uma foto, ela entra como página inteira no comprovante gerado.</p>
     </div>`;
 
   const bombas = bombasDaUnidade(u).filter(bombaAtiva);
@@ -5076,6 +5245,9 @@ function renderPublicAfericao(){
         catch(e){ console.error("[saldo] falha ao enviar anexo livre (link público):", e); }
       }
 
+      // próxima quinzena de aferição desta unidade, pra avisar a pessoa e deixar registrado no comprovante
+      const proxima = proximaJanelaApos(data, u.estado, u.nome);
+
       const protocolo = "AF-"+new Date().toISOString().replace(/[-:T.Z]/g,"").slice(0,14);
       const comprovante = {
         id: "cmp-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7),
@@ -5084,6 +5256,7 @@ function renderPublicAfericao(){
         observacao: document.getElementById("afPubObs").value.trim(),
         anexosLivres: anexoLivreAssetId ? [{ nome: anexoLivreFile.name, assetId: anexoLivreAssetId }] : [],
         tanques: tanquesComprovante, bombas: bombasComprovante,
+        proximaAfericaoVencimento: proxima.fim, proximaAfericaoLabel: proxima.label,
         criadoEm: new Date().toISOString(),
       };
       if(dbNs){
@@ -5093,7 +5266,8 @@ function renderPublicAfericao(){
 
       await gerarComprovantePdf(comprovante, u, historicoLancamentos);
       showToast("Aferição registrada com sucesso — comprovante gerado.");
-      afPubState = { unidadeId:null, bombaQtd:{}, bombaDiffs:{} };
+      afPubState = { unidadeId:null, bombaQtd:{}, bombaDiffs:{},
+        done: { unidadeNome:u.nome, nome, proximaVencimento:proxima.fim, proximaLabel:proxima.label } };
       renderPublicAfericao();
     } finally {
       btn.disabled = false; btn.textContent = "Enviar aferição";
@@ -5132,6 +5306,26 @@ document.getElementById("refreshDataBtn").addEventListener("click", refreshAllDa
 document.getElementById("openNovoUsuario").addEventListener("click", openNovoUsuario);
 document.getElementById("testarDb").addEventListener("click", testarConexaoDb);
 document.getElementById("openNovoAgendamento").addEventListener("click", openNovoAgendamento);
+let docAnexoFile = null;
+wireUploadBox("docAnexoBox", "docAnexo", f=>{ docAnexoFile = f; });
+document.getElementById("docSalvar").addEventListener("click", async ()=>{
+  const nome = document.getElementById("docNome").value.trim();
+  if(!nome){ showToast("Informe o nome do documento."); return; }
+  if(!docAnexoFile){ showToast("Selecione um arquivo."); return; }
+  const btn = document.getElementById("docSalvar");
+  btn.disabled = true;
+  try{
+    await salvarDocumento(nome, docAnexoFile);
+    document.getElementById("docNome").value = "";
+    docAnexoFile = null;
+    const box = document.getElementById("docAnexoBox");
+    box.classList.remove("has-file");
+    box.querySelector(".upload-box-preview").innerHTML = "";
+    document.getElementById("docAnexo").value = "";
+  } finally {
+    btn.disabled = false;
+  }
+});
 document.getElementById("openMsgAfericao").addEventListener("click", openMsgAfericao);
 document.getElementById("openNovaAfericao").addEventListener("click", ()=>{
   const selU = document.getElementById("afUnidade");
