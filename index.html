@@ -659,9 +659,9 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .rpt-sub{margin:0 0 10px;font-size:13px;color:#444}
 .rpt-meta{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:#666}
 .rpt-table-wrap{overflow-x:auto;margin-top:4px}
-.rpt-table{width:100%;border-collapse:collapse;font-size:12px}
-.rpt-table th,.rpt-table td{border:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}
-.rpt-table th{background:#f2f2f2}
+.rpt-table{width:100%;min-width:0;border-collapse:collapse;font-size:12px;table-layout:fixed}
+.rpt-table th,.rpt-table td{border:1px solid #ddd;padding:6px 5px;text-align:left;vertical-align:top;overflow-wrap:break-word;word-break:break-word;box-sizing:border-box;white-space:normal;font-size:12px;line-height:1.35}
+.rpt-table th{background:#f2f2f2;text-transform:none;letter-spacing:normal;font-size:11px;font-weight:700;color:#444}
 .rpt-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .rpt-empty{text-align:center;color:#888;padding:24px;font-size:13px}
 .rpt-unit-block{margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #ddd}
@@ -1271,7 +1271,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-29-v65";
+const APP_BUILD = "2026-10-29-v66";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -2784,7 +2784,7 @@ function pdfTint(hex, factor){
   return '#' + [mix(r),mix(g),mix(b)].map(v=>v.toString(16).padStart(2,'0')).join('');
 }
 function pdfNow(){ return new Date().toLocaleString("pt-BR"); }
-function pdfHeaderContent(titulo, subLinhas, marca){
+function pdfHeaderContent(titulo, subLinhas, marca, larguraLinha){
   marca = marca || marcaPadrao();
   const brandNode = marca.logoDataUrl
     ? { image: marca.logoDataUrl, width: 84, margin:[0,0,0,4] }
@@ -2798,7 +2798,10 @@ function pdfHeaderContent(titulo, subLinhas, marca){
       ] },
       { width:'auto', text:"Central de Abastecimento", fontSize:9, color:PDFC.GRAY, alignment:'right', margin:[0,1,0,0] },
     ] },
-    { canvas:[{type:'line', x1:0, y1:8, x2:523, y2:8, lineWidth:1.5, lineColor:PDFC.INK}] },
+    // x2 precisa ir até o limite real da largura útil da página (A4 retrato ~535pt, paisagem ~782pt) —
+    // antes era fixo em 523 (só serve pro retrato) e em paisagem a barra parava no meio, bem antes
+    // da tabela de muitas colunas terminar
+    { canvas:[{type:'line', x1:0, y1:8, x2:(larguraLinha||523), y2:8, lineWidth:1.5, lineColor:PDFC.INK}] },
   ];
 }
 function pdfKpiRow(items){ // items: [label, value, color]
@@ -3140,7 +3143,7 @@ function modeloConciliacao(){
       diffTxt, STATUS_LABEL[g.cls.status]||g.cls.status, motivacoes||"—"];
   });
   modeloTabela(m, null, ["Unidade","Produto","Tanque(s)","Data","Entrada","Saída","Saldo Abastec.","Saldo Suprim.","Saldo Físico","Diferença","Status","Observação"], linhas, [4,5,6,7,8,9],
-    [85,32,40,60,46,46,52,52,52,65,58,'*']); // larguras fixas pras colunas numéricas/curtas — Data com espaço pra "DD/MM/AAAA" sem quebrar linha, Diferença reduzida (cabe tranquilo e sobra espaço pra Observação não cortar texto no PDF)
+    [80,32,40,56,44,44,48,48,48,60,52,'*']); // larguras enxutas em todas as colunas fixas pra sobrar o máximo de espaço pra Observação — testado sem cortar texto mesmo com diferenças grandes tipo "-12.450 l (84,2%)" e status "Fora do limite"
   return m;
 }
 function modeloDivergencias(){
@@ -3344,7 +3347,11 @@ function modeloParaHtml(m){
   const blocosHtml = m.blocos.map(b=>{
     if(b.tipo==="texto") return `<p class="rpt-empty">${b.texto}</p>`;
     const linhas = b.linhas.map(cells=>`<tr>${cells.map((c,i)=>`<td${b.numCols.includes(i)?' class="num"':''}>${c}</td>`).join("")}</tr>`).join("");
-    return `${b.titulo?`<h4 class="rpt-subhead">${b.titulo}</h4>`:""}<div class="rpt-table-wrap"><table class="rpt-table"><thead><tr>${b.headers.map((h,i)=>`<th${b.numCols.includes(i)?' class="num"':''}>${h}</th>`).join("")}</tr></thead><tbody>${linhas}</tbody></table></div>`;
+    const colgroup = `<colgroup>${b.headers.map((h,i)=>{
+      const w = b.widths && b.widths[i] && b.widths[i]!=='*' ? ` style="width:${b.widths[i]}px"` : "";
+      return `<col${w}>`;
+    }).join("")}</colgroup>`;
+    return `${b.titulo?`<h4 class="rpt-subhead">${b.titulo}</h4>`:""}<div class="rpt-table-wrap"><table class="rpt-table">${colgroup}<thead><tr>${b.headers.map((h,i)=>`<th${b.numCols.includes(i)?' class="num"':''}>${h}</th>`).join("")}</tr></thead><tbody>${linhas}</tbody></table></div>`;
   }).join("");
   const marca = m.marca || marcaPadrao();
   return `<div class="rpt-header">
@@ -3366,7 +3373,8 @@ function marcaBrandHtml(marca){
   return `<div class="rpt-brand" style="color:${marca.cor}">${marca.nome}</div>`;
 }
 function modeloParaPdfContent(m){
-  const content = [...pdfHeaderContent(m.titulo, [m.subtitulo, `Gerado em ${pdfNow()} · por ${session.nome}`], m.marca)];
+  const larguraLinha = precisaPaisagem(m) ? 781.89 : 523;
+  const content = [...pdfHeaderContent(m.titulo, [m.subtitulo, `Gerado em ${pdfNow()} · por ${session.nome}`], m.marca, larguraLinha)];
   if(m.kpis.length) content.push(pdfKpiRow(m.kpis.map(k=>[k.label, k.valor, k.cor])));
   m.blocos.forEach(b=>{
     if(b.tipo==="texto"){ content.push({text:b.texto, fontSize:9.5, color:PDFC.GRAY, margin:[0,6,0,6]}); return; }
