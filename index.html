@@ -1139,6 +1139,9 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
           <label>Até</label>
           <input type="date" id="rAte">
         </div>
+        <label class="checkbox-row" id="rUltimaDataField" style="align-self:flex-end;margin-bottom:9px">
+          <input type="checkbox" id="rUltimaData"> Só a última data de cada unidade
+        </label>
         <button class="btn btn-ghost" id="rptImprimir" hidden>Exportar PDF</button>
       </div>
 
@@ -1272,7 +1275,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-29-v67";
+const APP_BUILD = "2026-10-29-v68";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -2917,10 +2920,12 @@ function aplicarPeriodoPreset(tipo){
   document.getElementById("rAte").value = hojeIso;
 }
 function periodoLabel(de, ate){
-  if(de && ate) return `Período: ${fmtDate(de)} a ${fmtDate(ate)}`;
-  if(de) return `Período: a partir de ${fmtDate(de)}`;
-  if(ate) return `Período: até ${fmtDate(ate)}`;
-  return "Período: todos os lançamentos registrados";
+  const sufixo = document.getElementById("rUltimaData") && document.getElementById("rUltimaData").checked
+    ? " · somente a última data de cada unidade" : "";
+  if(de && ate) return `Período: ${fmtDate(de)} a ${fmtDate(ate)}${sufixo}`;
+  if(de) return `Período: a partir de ${fmtDate(de)}${sufixo}`;
+  if(ate) return `Período: até ${fmtDate(ate)}${sufixo}`;
+  return `Período: todos os lançamentos registrados${sufixo}`;
 }
 // grupos (resumo do dia) filtrados pelos campos do painel de Relatórios
 function gruposFiltradosRelatorio(){
@@ -2928,14 +2933,27 @@ function gruposFiltradosRelatorio(){
   const produto = document.getElementById("rProduto").value;
   const de = document.getElementById("rDe").value;
   const ate = document.getElementById("rAte").value;
-  return allRows().filter(r=>{
+  const soUltimaData = document.getElementById("rUltimaData").checked;
+  let rows = allRows().filter(r=>{
     if(session.role==="controlador" && r.u.id!==session.unidadeId) return false;
     if(selecao.length && !selecao.includes(r.u.id)) return false;
     if(produto && r.produto!==produto) return false;
     if(de && r.data < de) return false;
     if(ate && r.data > ate) return false;
     return true;
-  }).sort((a,b)=> a.u.nome.localeCompare(b.u.nome) || (a.data<b.data?-1:1));
+  });
+  // "só a última data de cada unidade": em vez de uma data única valendo pra todas as
+  // unidades, cada unidade entra com a data mais recente DELA dentro do período/filtro
+  // acima — resolve o caso de uma unidade ter parado de lançar antes das outras
+  if(soUltimaData){
+    const ultimaPorUnidade = new Map();
+    rows.forEach(r=>{
+      const atual = ultimaPorUnidade.get(r.u.id);
+      if(!atual || r.data > atual) ultimaPorUnidade.set(r.u.id, r.data);
+    });
+    rows = rows.filter(r => r.data === ultimaPorUnidade.get(r.u.id));
+  }
+  return rows.sort((a,b)=> a.u.nome.localeCompare(b.u.nome) || (a.data<b.data?-1:1));
 }
 // agrupa os lançamentos filtrados por unidade+produto, base p/ consumo/entradas/média
 function agruparPorUnidadeProduto(grupos){
@@ -5386,7 +5404,7 @@ document.getElementById("rPeriodo").addEventListener("change", (e)=>{
   aplicarPeriodoPreset(e.target.value);
   if(reportTipo) gerarRelatorio();
 });
-["rProduto","rDe","rAte"].forEach(id=>{
+["rProduto","rDe","rAte","rUltimaData"].forEach(id=>{
   document.getElementById(id).addEventListener("change", ()=>{ if(reportTipo) gerarRelatorio(); });
 });
 document.getElementById("rUnidadeBtn").addEventListener("click", (e)=>{
