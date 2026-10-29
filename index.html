@@ -1271,7 +1271,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-29-v64";
+const APP_BUILD = "2026-10-29-v65";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3140,7 +3140,7 @@ function modeloConciliacao(){
       diffTxt, STATUS_LABEL[g.cls.status]||g.cls.status, motivacoes||"—"];
   });
   modeloTabela(m, null, ["Unidade","Produto","Tanque(s)","Data","Entrada","Saída","Saldo Abastec.","Saldo Suprim.","Saldo Físico","Diferença","Status","Observação"], linhas, [4,5,6,7,8,9],
-    [85,32,40,60,46,46,52,52,52,85,58,'*']); // larguras fixas pras colunas numéricas/curtas — Data com espaço pra "DD/MM/AAAA" sem quebrar linha, Observação ocupa o resto
+    [85,32,40,60,46,46,52,52,52,65,58,'*']); // larguras fixas pras colunas numéricas/curtas — Data com espaço pra "DD/MM/AAAA" sem quebrar linha, Diferença reduzida (cabe tranquilo e sobra espaço pra Observação não cortar texto no PDF)
   return m;
 }
 function modeloDivergencias(){
