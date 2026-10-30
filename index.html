@@ -1113,6 +1113,10 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
           <h3>Comparativo</h3>
           <p>Cada unidade no período escolhido × o período equivalente anterior, com variação %.</p>
         </button>
+        <button type="button" class="rpt-type-card" data-tipo="afericaobomba">
+          <h3>Aferição de bomba</h3>
+          <p>Diferença apontada no bico (régua do aferidor, em ml) por bomba e data — não é diferença de saldo.</p>
+        </button>
       </div>
 
       <div class="filters">
@@ -1283,7 +1287,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-30-v74";
+const APP_BUILD = "2026-10-30-v75";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3511,6 +3515,59 @@ function modeloComparativo(){
     ["Unidade","Período atual","Período anterior","Variação"], linhas, [1,2,3]);
   return m;
 }
+// Relatório de aferição de BOMBA (precisão do bico, aferidor de 20l) — não é diferença de
+// saldo (isso é a Conciliação, que fica de fora daqui de propósito). A diferença de cada
+// aferição é guardada em litros (diferencaMedia/pulls[].diferenca) mas é sempre exibida em
+// ml aqui, porque é assim que a régua do aferidor marca (de 20 em 20ml).
+function afericoesBombaFiltradasRelatorio(){
+  const selecao = unidadesSelecionadasRelatorio;
+  const de = document.getElementById("rDe").value;
+  const ate = document.getElementById("rAte").value;
+  return afericoesBomba.filter(a=>{
+    if(session.role==="controlador" && a.unidadeId!==session.unidadeId) return false;
+    if(selecao.length && !selecao.includes(a.unidadeId)) return false;
+    if(de && a.data < de) return false;
+    if(ate && a.data > ate) return false;
+    return true;
+  }).sort((a,b)=> a.data<b.data ? -1 : (a.data>b.data ? 1 : (a.unidadeId<b.unidadeId?-1:1)));
+}
+function fmtMl(litros){
+  if(litros===null||litros===undefined) return "—";
+  const ml = litros*1000;
+  return (ml>=0?"+":"")+fmtNum.format(ml)+" ml";
+}
+function modeloAfericaoBomba(){
+  const de = document.getElementById("rDe").value, ate = document.getElementById("rAte").value;
+  const regs = afericoesBombaFiltradasRelatorio();
+  const m = criarModelo("Relatório de Aferição de Bomba (precisão do bico)", periodoLabel(de, ate));
+  if(!regs.length){ modeloTexto(m, "Nenhuma aferição de bomba no período/filtro selecionado."); return m; }
+  m.kpis = [
+    {label:"Aferições no período", valor: regs.length, cor:PDFC.TEAL},
+    {label:"Fora da margem", valor: regs.filter(a=>a.status==="warn").length, cor:PDFC.BLUE},
+    {label:"Divergentes", valor: regs.filter(a=>a.status==="bad").length, cor:PDFC.RED},
+  ];
+  const linhas = regs.map(a=>{
+    const u = unidades.find(x=>x.id===a.unidadeId);
+    const b = u && bombasDaUnidade(u).find(x=>x.id===a.bombaId);
+    const pulls = a.pulls || [];
+    const pullsTxt = pulls.map(p=>(p.diferenca>=0?"+":"")+fmtNum.format(p.diferenca*1000)).join(", ")+" ml";
+    return [
+      u?u.nome:"—",
+      b?("Bomba "+b.numero):"—",
+      b?(tanquesDaBomba(u,b).map(t=>t.numero).join(", ")||"—"):"—",
+      fmtDate(a.data),
+      fmtNum.format(a.litragemPadrao)+" l",
+      pulls.length,
+      pullsTxt,
+      fmtMl(a.diferencaMedia),
+      STATUS_LABEL[a.status]||a.status,
+    ];
+  });
+  modeloTabela(m, null,
+    ["Unidade","Bomba","Tanque(s)","Data","Litragem padrão","Aferições (pulls)","Diferença por pull","Diferença média (bico)","Status"],
+    linhas, [4,5,7]);
+  return m;
+}
 
 function modeloParaHtml(m){
   const geradoEm = new Date().toLocaleString("pt-BR");
@@ -3587,6 +3644,7 @@ function gerarRelatorio(){
     : reportTipo==="pendencias" ? modeloPendencias()
     : reportTipo==="combustivel" ? modeloPorCombustivel()
     : reportTipo==="comparativo" ? modeloComparativo()
+    : reportTipo==="afericaobomba" ? modeloAfericaoBomba()
     : modeloExecutivo();
   ultimoRelatorioModelo = modelo;
   document.getElementById("rptPreview").innerHTML = modeloParaHtml(modelo);
