@@ -1283,7 +1283,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-30-v73";
+const APP_BUILD = "2026-10-30-v74";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -2674,7 +2674,6 @@ function renderAfericao(){
           </div>
           <span class="afericao-pill ${af.status}">${afericaoTxt(af)}</span>
         </div>
-        ${diffTrendSvg(t)}
       </div>`;
     }).join("");
   }
@@ -3148,20 +3147,11 @@ async function gerarComprovantePdf(c, u, listaLancamentos){
   }
   content.push(pdfH2("Aferição de tanque (saldo físico)"));
   content.push(pdfStyledTable(
-    ["Tanque","Combustível","Saldo físico (l)","Diferença (calc. × físico)","Foto da régua"],
+    ["Tanque","Combustível","Saldo físico (l)","Foto da régua"],
     c.tanques.map(t=>[t.numero, t.produto, fmtNum.format(t.saldoFisico),
-      typeof t.diferenca==="number" ? (t.diferenca>=0?"+":"")+fmtLFino(t.diferenca) : "—",
       t.fotoAssetId?"Anexada":"—"]),
-    { numCols:[2,3] }
+    { numCols:[2] }
   ));
-  // gráfico de tendência por tanque (linha suavizada, estilo do dashboard de referência)
-  for(const t of c.tanques){
-    const tanqueObj = t.tanqueId ? u.tanques.find(x=>x.id===t.tanqueId) : u.tanques.find(x=>x.numero===t.numero);
-    if(tanqueObj){
-      const grafico = diffTrendPdfContent(tanqueObj, listaLancamentos);
-      if(grafico) content.push(grafico);
-    }
-  }
   // fotos da régua anexadas
   const fotosTanque = [];
   for(const t of c.tanques){
@@ -3872,7 +3862,11 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
   ["mData","mFisico"].forEach(id=>{
     document.getElementById(id).addEventListener("input", ()=>{ updateSaldoAtualBox(); updatePreview(); });
   });
-  document.getElementById("mData").addEventListener("change", updateSupFields);
+  // Só recalcula/espelha o Suprimento ao trocar a Data se o usuário ainda não tiver
+  // editado esses campos manualmente — senão, ajustar a Data por último apagava o que
+  // a pessoa já tinha digitado no Suprimento (supEditado existe exatamente pra isso,
+  // mas esse listener não respeitava ele).
+  document.getElementById("mData").addEventListener("change", ()=>{ if(!supEditado) updateSupFields(); });
 
   function updatePreview(){
     const t = currentTanque(); if(!t) return;
