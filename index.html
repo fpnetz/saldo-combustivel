@@ -1279,7 +1279,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-30-v71";
+const APP_BUILD = "2026-10-30-v72";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3200,15 +3200,18 @@ async function gerarComprovantePdf(c, u, listaLancamentos){
     content.push(pdfH2("Observação"));
     content.push({ text:c.observacao, fontSize:9.5, color:PDFC.INK, margin:[0,0,0,10] });
   }
-  // relatório de aferição anexado: quando é uma foto, ocupa uma página inteira própria no
-  // comprovante (pageBreak antes do título); quando é outro tipo de arquivo (pdfmake só
-  // embute imagem), fica só a referência — o arquivo original continua salvo à parte
+  // relatório de aferição anexado: quando é uma foto, ocupa a página inteira própria no
+  // comprovante — sem título acima (só uma legenda discreta embaixo), pra sobrar o máximo
+  // de espaço pro "fit" (não "width" fixo) escalar a imagem até preencher a página inteira
+  // (A4 retrato, ~535x770pt de área útil), tanto faz se o anexo for retrato ou paisagem,
+  // sem vazar pra uma 3ª página; é sempre a ÚLTIMA página do comprovante. Quando é outro
+  // tipo de arquivo (pdfmake só embute imagem), fica só a referência — o arquivo original
+  // continua salvo à parte
   for(const a of c.anexosLivres){
     const img = await urlParaImagemDataUrl(a.assetId);
     if(img){
-      content.push({ text:"Relatório de aferição (anexo)", fontSize:12, bold:true, color:PDFC.INK, pageBreak:"before", margin:[0,0,0,10] });
-      content.push({ image:img, width:500, margin:[0,0,0,6] });
-      content.push({ text:a.nome, fontSize:8, color:PDFC.GRAY });
+      content.push({ image:img, fit:[535, 748], alignment:"center", pageBreak:"before", margin:[0,4,0,4] });
+      content.push({ text:`Relatório de aferição (anexo) — ${a.nome}`, fontSize:7.5, color:PDFC.GRAY, alignment:"center" });
     } else {
       content.push(pdfH2("Relatório de aferição (anexo)"));
       content.push({ text:`Arquivo anexado: ${a.nome} (não é possível pré-visualizar este tipo de arquivo no PDF).`, fontSize:9.5, color:PDFC.GRAY, margin:[0,0,0,4] });
