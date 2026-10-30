@@ -581,15 +581,16 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .afer-dia-item{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
 .afer-dia-item:last-of-type{border-bottom:none}
 .afer-feriado-label{font-size:9.5px;font-weight:700;color:var(--teal-ink);display:flex;align-items:center;gap:3px}
-.feriados-box{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
-.feriados-box .fer-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
-.feriados-box .fer-head h4{margin:0;font-size:13px}
-.fer-list{display:flex;flex-direction:column;gap:4px;font-size:12.5px;margin-bottom:8px}
-.fer-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:7px;background:var(--bg);border:1px solid var(--line)}
-.fer-row .tag{font-size:10.5px;color:var(--muted)}
-.fer-row button{background:none;border:0;color:var(--bad);cursor:pointer;font-size:12px}
-.fer-add-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.fer-add-row input, .fer-add-row select{font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink)}
+.feriados-box{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.fer-toggle{background:none;border:0;padding:2px 0;color:var(--muted);font-size:12.5px;cursor:pointer}
+.fer-toggle:hover{color:var(--teal-ink)}
+.fer-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.fer-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:4px 6px 4px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+.fer-chip button{background:none;border:0;color:var(--bad);cursor:pointer;font-size:13px;line-height:1;padding:0 2px}
+.fer-add-row{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.fer-add-row input, .fer-add-row select{font-size:12px;padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);width:84px}
+.fer-add-row input#ferCidade{width:130px}
+.fer-add-row input#ferNome{width:130px}
 @media (max-width:640px){
   .afer-calendar{gap:5px}
   .afer-cell{min-height:56px;padding:6px;border-radius:7px}
@@ -1282,7 +1283,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-30-v69";
+const APP_BUILD = "2026-10-30-v70";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1976,26 +1977,31 @@ async function salvarFeriadosMunicipais(lista){
   try{ await dbNs.doc("config/geral").set(configGeral); }
   catch(e){ showToast("Não foi possível salvar no servidor."); }
 }
+let feriadosBoxAberto = false; // cadastro de feriados fica recolhido por padrão (minimalista)
 function renderFeriadosBox(u){
   const box = document.getElementById("feriadosBox");
   if(!box) return;
   if(session.role!=="admin"){ box.innerHTML = ""; return; }
   const lista = configGeral.feriadosMunicipais || FERIADOS_MUNICIPAIS_SEED;
   const estadosUsados = [...new Set(unidades.map(x=>x.estado))].sort();
-  const rows = lista.map((f,i)=>`<div class="fer-row">
-      <span>${f.cidades?f.cidades.join("/"):f.uf+" (todo o estado)"} — ${pad2(f.dia)}/${pad2(f.mes)} <span class="tag">${f.nome}</span></span>
-      <button type="button" data-fer-del="${i}" title="Remover">remover</button>
-    </div>`).join("") || `<p class="muted" style="font-size:12.5px">Nenhum feriado municipal cadastrado.</p>`;
-  box.innerHTML = `<div class="fer-head"><h4>Feriados municipais/estaduais (além dos nacionais, já exibidos no calendário)</h4></div>
-    <div class="fer-list">${rows}</div>
+  if(!feriadosBoxAberto){
+    box.innerHTML = `<button type="button" class="fer-toggle" id="ferToggle">Feriados municipais/estaduais (${lista.length}) ▾</button>`;
+    document.getElementById("ferToggle").addEventListener("click", ()=>{ feriadosBoxAberto = true; renderFeriadosBox(u); });
+    return;
+  }
+  const chips = lista.map((f,i)=>`<span class="fer-chip">${f.cidades?f.cidades.join("/"):f.uf+" (estado)"} ${pad2(f.dia)}/${pad2(f.mes)} · ${f.nome}<button type="button" data-fer-del="${i}" title="Remover" aria-label="Remover">×</button></span>`).join("")
+    || `<p class="muted" style="font-size:12.5px;margin:0">Nenhum feriado municipal cadastrado.</p>`;
+  box.innerHTML = `<button type="button" class="fer-toggle" id="ferToggle">Feriados municipais/estaduais (além dos nacionais) ▴</button>
+    <div class="fer-chips">${chips}</div>
     <div class="fer-add-row">
       <select id="ferUf">${estadosUsados.map(uf=>`<option value="${uf}">${uf}</option>`).join("")}</select>
-      <input id="ferCidade" placeholder="Cidade (em branco = todo o estado)" style="min-width:200px">
-      <input id="ferDia" type="number" min="1" max="31" placeholder="Dia" style="width:60px">
-      <input id="ferMes" type="number" min="1" max="12" placeholder="Mês" style="width:60px">
-      <input id="ferNome" placeholder="Nome do feriado" style="min-width:160px">
+      <input id="ferCidade" placeholder="Cidade (opcional)">
+      <input id="ferDia" type="number" min="1" max="31" placeholder="Dia">
+      <input id="ferMes" type="number" min="1" max="12" placeholder="Mês">
+      <input id="ferNome" placeholder="Nome">
       <button type="button" class="btn btn-ghost" id="ferAdd">+ Adicionar</button>
     </div>`;
+  document.getElementById("ferToggle").addEventListener("click", ()=>{ feriadosBoxAberto = false; renderFeriadosBox(u); });
   box.querySelectorAll("[data-fer-del]").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
       const idx = Number(btn.dataset.ferDel);
