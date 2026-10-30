@@ -7,6 +7,10 @@
 <title>Saldo de Combustível</title>
 <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.9/build/pdfmake.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.9/build/vfs_fonts.js"></script>
+<!-- pdf-lib: só usado pra ANEXAR o relatório de aferição (foto OU PDF) como página(s)
+     extra no comprovante gerado pelo pdfmake acima — pdfmake sozinho só embute imagem,
+     não consegue colar as páginas de um PDF já pronto dentro de outro PDF. -->
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -1279,7 +1283,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-30-v72";
+const APP_BUILD = "2026-10-30-v73";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3200,24 +3204,101 @@ async function gerarComprovantePdf(c, u, listaLancamentos){
     content.push(pdfH2("Observação"));
     content.push({ text:c.observacao, fontSize:9.5, color:PDFC.INK, margin:[0,0,0,10] });
   }
-  // relatório de aferição anexado: quando é uma foto, ocupa a página inteira própria no
-  // comprovante — sem título acima (só uma legenda discreta embaixo), pra sobrar o máximo
-  // de espaço pro "fit" (não "width" fixo) escalar a imagem até preencher a página inteira
-  // (A4 retrato, ~535x770pt de área útil), tanto faz se o anexo for retrato ou paisagem,
-  // sem vazar pra uma 3ª página; é sempre a ÚLTIMA página do comprovante. Quando é outro
-  // tipo de arquivo (pdfmake só embute imagem), fica só a referência — o arquivo original
-  // continua salvo à parte
-  for(const a of c.anexosLivres){
-    const img = await urlParaImagemDataUrl(a.assetId);
-    if(img){
-      content.push({ image:img, fit:[535, 748], alignment:"center", pageBreak:"before", margin:[0,4,0,4] });
-      content.push({ text:`Relatório de aferição (anexo) — ${a.nome}`, fontSize:7.5, color:PDFC.GRAY, alignment:"center" });
-    } else {
-      content.push(pdfH2("Relatório de aferição (anexo)"));
-      content.push({ text:`Arquivo anexado: ${a.nome} (não é possível pré-visualizar este tipo de arquivo no PDF).`, fontSize:9.5, color:PDFC.GRAY, margin:[0,0,0,4] });
-    }
+  // relatório de aferição anexado: foto OU documento (ex: PDF exportado de outro sistema),
+  // sempre como página(s) própria(s) no FINAL do comprovante — ver baixarComprovanteComAnexos
+  await baixarComprovanteComAnexos(content, `comprovante-afericao-${c.protocolo}.pdf`, c.anexosLivres);
+}
+// baixa um asset (foto/anexo) como bytes crus + content-type (não só imagem — usado pra
+// decidir se o anexo vira página colada via pdf-lib ou vira imagem via pdfmake)
+async function baixarAssetBytes(url){
+  if(!url) return null;
+  try{
+    const resp = await fetch(url);
+    if(!resp.ok) return null;
+    const contentType = (resp.headers.get("content-type")||"").split(";")[0].trim();
+    const buf = await resp.arrayBuffer();
+    return { bytes:new Uint8Array(buf), contentType };
+  }catch(e){ console.error("[saldo] falha ao baixar anexo:", e); return null; }
+}
+function arrayBufferParaBase64(bytes){
+  let binary = "";
+  const chunk = 0x8000;
+  for(let i=0;i<bytes.length;i+=chunk) binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+  return btoa(binary);
+}
+// gera os bytes do PDF do pdfmake (Promise em vez de callback)
+function pdfGetBuffer(doc){
+  return new Promise((resolve, reject)=>{
+    try{ pdfMake.createPdf(doc).getBuffer((buf)=>resolve(buf)); }
+    catch(e){ reject(e); }
+  });
+}
+function baixarBlobPdf(bytes, filename){
+  const blob = new Blob([bytes], { type:"application/pdf" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+// monta o comprovante final: o PDF do pdfmake (content) + uma página inteira por anexo
+// livre ("relatório de aferição"). Usa pdf-lib (só carregado pra isso) pra COLAR páginas
+// de verdade no PDF final, em vez de só embutir como imagem (que é tudo que o pdfmake
+// sozinho sabe fazer): se o anexo já É um PDF, suas páginas originais (com texto/qualidade
+// vetorial) entram direto; se é foto, vira uma página A4 nova com a imagem ocupando o
+// espaço útil inteiro (mesmo "fit" de antes) e essa página é colada; qualquer outro tipo de
+// arquivo (ex: .docx) não dá pra colar — vira uma página de aviso com o nome do arquivo.
+// O anexo é sempre a(s) última(s) página(s) do comprovante.
+async function baixarComprovanteComAnexos(content, filename, anexosLivres){
+  if(typeof pdfMake==="undefined" || !pdfMake.createPdf){ showToast("Biblioteca de PDF ainda não carregou — tente novamente em instantes."); return; }
+  const temAnexo = !!(anexosLivres && anexosLivres.length && typeof PDFLib!=="undefined");
+  // quando vai ter anexo colado depois, o rodapé "Página X de Y" do pdfmake não pode saber
+  // o total real (só sabe a contagem da parte gerada por ele, antes de colar as páginas do
+  // anexo) — então aqui ele mostra só "Página X" sem o "de Y" errado, e a numeração correta
+  // de TODAS as páginas (base + anexo) é redesenhada no final, depois de colar tudo
+  const doc = pdfDoc(content);
+  if(temAnexo){
+    doc.footer = (cur)=> ({ columns:[
+      { text:"Gerado automaticamente pelo sistema de Combustível — Atlântico Transportes", fontSize:8, color:PDFC.GRAY },
+      { text:`Página ${cur}`, fontSize:8, color:PDFC.GRAY, alignment:'right' },
+    ], margin:[30,6,30,0] });
   }
-  pdfDownload(pdfDoc(content), `comprovante-afericao-${c.protocolo}.pdf`);
+  let baseBuf;
+  try{ baseBuf = await pdfGetBuffer(doc); }
+  catch(e){ showToast("Não foi possível gerar o PDF: "+(e&&e.message?e.message:e)); return; }
+  if(!temAnexo){
+    baixarBlobPdf(baseBuf, filename);
+    return;
+  }
+  try{
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+    const out = await PDFDocument.load(baseBuf);
+    for(const anexo of anexosLivres){
+      const asset = await baixarAssetBytes(anexo.assetId);
+      if(asset && /^application\/pdf$/i.test(asset.contentType)){
+        const src = await PDFDocument.load(asset.bytes);
+        (await out.copyPages(src, src.getPageIndices())).forEach(p=>out.addPage(p));
+      } else if(asset && /^image\//i.test(asset.contentType)){
+        const dataUrl = "data:"+asset.contentType+";base64,"+arrayBufferParaBase64(asset.bytes);
+        const paginaImg = [
+          { image:dataUrl, fit:[535,748], alignment:"center", margin:[0,4,0,4] },
+          { text:`Relatório de aferição (anexo) — ${anexo.nome}`, fontSize:7.5, color:PDFC.GRAY, alignment:"center" },
+        ];
+        const imgBuf = await pdfGetBuffer({ pageSize:'A4', pageMargins:[30,36,30,36], content:paginaImg, defaultStyle:{font:'Roboto'} });
+        const src = await PDFDocument.load(imgBuf);
+        (await out.copyPages(src, src.getPageIndices())).forEach(p=>out.addPage(p));
+      } else {
+        const pg = out.addPage();
+        const font = await out.embedFont(StandardFonts.Helvetica);
+        pg.drawText("Relatório de aferição (anexo)", { x:40, y:pg.getHeight()-60, size:14, font });
+        pg.drawText(`Arquivo anexado: ${anexo.nome}`, { x:40, y:pg.getHeight()-90, size:10, font, color:rgb(0.4,0.4,0.4) });
+        pg.drawText("(não foi possível colar este tipo de arquivo no PDF — baixe-o à parte)", { x:40, y:pg.getHeight()-106, size:9, font, color:rgb(0.4,0.4,0.4) });
+      }
+    }
+    baixarBlobPdf(await out.save(), filename);
+  }catch(e){
+    console.error("[saldo] falha ao anexar relatório no comprovante:", e);
+    showToast("Não foi possível anexar o relatório no PDF — baixando o comprovante sem ele.");
+    baixarBlobPdf(baseBuf, filename);
+  }
 }
 
 function criarModelo(titulo, subtitulo, marca){
