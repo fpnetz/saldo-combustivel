@@ -574,6 +574,12 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .afer-prazo-label{font-size:10px;font-weight:700;letter-spacing:.02em;color:var(--teal-ink);text-transform:uppercase}
 .afer-cell.bad .afer-prazo-label{color:var(--bad)}
 .afer-cell.feriado{border-style:dashed;border-color:var(--teal)}
+.afer-cell.sel{box-shadow:0 0 0 2px var(--teal-ink) inset}
+.afer-dia-card{margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--bg)}
+.afer-dia-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.afer-dia-head h3{margin:0;font-size:15px}
+.afer-dia-item{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.afer-dia-item:last-of-type{border-bottom:none}
 .afer-feriado-label{font-size:9.5px;font-weight:700;color:var(--teal-ink);display:flex;align-items:center;gap:3px}
 .feriados-box{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
 .feriados-box .fer-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
@@ -1031,6 +1037,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
           <div class="afer-weekday">Sáb</div>
         </div>
         <div class="afer-calendar" id="afCalendar"></div>
+        <div id="afCalDiaExpand"></div>
         <div class="feriados-box" id="feriadosBox"></div>
       </div>
 
@@ -1275,7 +1282,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-29-v68";
+const APP_BUILD = "2026-10-30-v69";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -2509,6 +2516,42 @@ function diffTrendSvg(tanque, listaLancamentos){
     ${urgente?`<span class="afer-trend-label" style="color:var(--red)">⚠ acima de 2,5 l</span>`:""}
   </div>`;
 }
+let afCalDiaSelecionado = null; // "YYYY-MM-DD" do dia expandido no calendário de aferições, ou null
+// mostra, abaixo do calendário, o que já foi registrado no dia clicado (tanque e/ou bomba) —
+// e, se nada foi registrado ainda, deixa abrir o registro direto desse dia
+function renderAfCalDiaExpand(u, afer){
+  const el = document.getElementById("afCalDiaExpand");
+  if(!el) return;
+  if(!afCalDiaSelecionado){ el.innerHTML = ""; return; }
+  const tanques = (afer||[]).filter(a=>a.data===afCalDiaSelecionado);
+  const bombas = u ? afericoesBomba.filter(a=>a.unidadeId===u.id && a.data===afCalDiaSelecionado) : [];
+  const temAlgo = tanques.length || bombas.length;
+  const linhasTanque = tanques.map(a=>`<div class="afer-dia-item">
+    <span>Tanque ${a.tanque.numero} · ${a.tanque.produto}</span>
+    <span class="num">${fmtL(a.saldoFisico)} (régua)</span>
+    <span class="num ${"diff-"+a.status}">${(a.diff>=0?"+":"")}${fmtNum.format(a.diff)} l</span>
+    ${badgeHtml({status:a.status})}
+  </div>`).join("");
+  const linhasBomba = bombas.map(a=>{
+    const b = u && bombasDaUnidade(u).find(x=>x.id===a.bombaId);
+    return `<div class="afer-dia-item">
+      <span>Bomba ${b?b.numero:"?"}</span>
+      <span class="num">${a.pulls.length} aferição(ões)</span>
+      <span class="num">${(a.diferencaMedia>=0?"+":"")}${fmtLFino(a.diferencaMedia)} l</span>
+      <span class="afericao-pill ${a.status}">${STATUS_LABEL[a.status]||a.status}</span>
+    </div>`;
+  }).join("");
+  el.innerHTML = `<div class="afer-dia-card">
+    <div class="afer-dia-head">
+      <h3>${fmtDate(afCalDiaSelecionado)}</h3>
+      <button class="btn btn-ghost" id="afCalDiaFechar" style="padding:4px 10px">Fechar</button>
+    </div>
+    ${temAlgo ? `${linhasTanque}${linhasBomba}` : `<p class="muted" style="margin:6px 0">Nenhuma aferição registrada nesse dia.</p>`}
+    <button class="btn btn-add" id="afCalDiaRegistrar" style="margin-top:10px">+ Registrar aferição desse dia</button>
+  </div>`;
+  document.getElementById("afCalDiaFechar").addEventListener("click", ()=>{ afCalDiaSelecionado=null; renderAfericao(); });
+  document.getElementById("afCalDiaRegistrar").addEventListener("click", ()=>{ if(u) openEscolhaAfericao(u, afCalDiaSelecionado); });
+}
 function afericoesDoMes(unidadeId, mes){
   // uma entrada por (tanque, data) em que o saldo físico (régua) foi registrado naquele mês
   const u = unidades.find(x=>x.id===unidadeId);
@@ -2671,7 +2714,9 @@ function renderAfericao(){
   // ---- calendário do mês ----
   // mostra junto, no mesmo dia, tanto a aferição de saldo físico (régua) quanto a
   // aferição de bomba, e marca com um anel os dias de prazo (venc.) da quinzena
-  // que ainda não foram cumpridos — clicar num dia deixa escolher o que registrar.
+  // que ainda não foram cumpridos — clicar num dia expande o que já foi feito
+  // naquele dia (ou deixa registrar, se nada foi feito ainda).
+  if(afCalDiaSelecionado && !afCalDiaSelecionado.startsWith(mes)) afCalDiaSelecionado = null;
   const calWrap = document.getElementById("afCalendar");
   if(mes){
     const [y,m] = mes.split("-").map(Number);
@@ -2719,13 +2764,14 @@ function renderAfericao(){
       const ab = porDiaBomba.get(d);
       const dataCel = isoYMD(y,m,d);
       const ehHoje = dataCel===hojeIso;
+      const ehSel = dataCel===afCalDiaSelecionado;
       const prazo = diasPrazo.get(d);
       const feriadosDia = feriadosDoDia(dataCel, u&&u.estado, u&&u.nome);
       let classeStatus = "";
       if(prazo==="bad") classeStatus = "bad";
       else if(a) classeStatus = a.status;
       else if(ab) classeStatus = ab.status;
-      cells += `<div class="afer-cell ${classeStatus}${ehHoje?" today":""}${prazo==="due"?" due":""}${feriadosDia.length?" feriado":""}" data-day="${d}">
+      cells += `<div class="afer-cell ${classeStatus}${ehHoje?" today":""}${prazo==="due"?" due":""}${feriadosDia.length?" feriado":""}${ehSel?" sel":""}" data-day="${d}">
         <span class="afer-daynum">${d}</span>
         <span class="afer-badges">
           ${a ? `<span class="afer-pct">${fmtPct.format(a.pct)}%</span>` : ""}
@@ -2741,11 +2787,14 @@ function renderAfericao(){
         if(!u){ showToast("Cadastre uma unidade primeiro."); return; }
         const dia = String(cell.dataset.day).padStart(2,"0");
         const dataIso = mes+"-"+dia;
-        openEscolhaAfericao(u, dataIso);
+        afCalDiaSelecionado = afCalDiaSelecionado===dataIso ? null : dataIso;
+        renderAfericao();
       });
     });
+    renderAfCalDiaExpand(u, afer);
   } else {
     calWrap.innerHTML = "";
+    renderAfCalDiaExpand(u, afer);
   }
   document.getElementById("afCalLegend").textContent = u ? `${u.nome} · ${afer.length} aferição(ões) de saldo físico · ${(u?afericoesBomba.filter(a=>a.unidadeId===u.id && a.data.startsWith(mes)):[]).length} de bomba no mês` : (unidades.length ? "" : "Cadastre uma unidade primeiro");
   renderFeriadosBox(u);
