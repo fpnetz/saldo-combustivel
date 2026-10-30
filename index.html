@@ -288,7 +288,7 @@ main{max-width:1180px;margin:0 auto;padding:22px max(16px, env(safe-area-inset-r
 .kpi .n{font-family:"Source Serif 4",Georgia,serif;font-size:28px;line-height:1.1}
 .kpi .l{font-size:12.5px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:6px}
 .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
-.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)} .dot.pend{background:var(--pend)}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)} .dot.pend{background:var(--pend)} .dot.af{background:var(--teal)}
 
 /* Filter bar */
 .filters{
@@ -338,10 +338,12 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .badge.warn{background:var(--warn-bg);color:var(--warn)}
 .badge.bad{background:var(--bad-bg);color:var(--bad)}
 .badge.pend{background:var(--pend-bg);color:var(--pend)}
+.badge.af{background:color-mix(in srgb, var(--teal) 14%, var(--paper));color:var(--teal-ink)}
 .diff-ok{color:var(--ok)}
 .diff-warn{color:var(--warn)}
 .diff-bad{color:var(--bad)}
 .diff-pend{color:var(--pend)}
+.diff-af{color:var(--teal-ink)}
 .saida-val{font-weight:700}
 .att-chip{display:inline-flex;gap:4px;color:var(--muted);font-size:12px}
 .tipo-af{color:var(--teal-ink);font-weight:600}
@@ -899,6 +901,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
             <option value="warn">Fora do limite</option>
             <option value="bad">Divergente</option>
             <option value="pend">Aguardando físico</option>
+            <option value="af">Aferição</option>
           </select>
         </div>
         <div class="field">
@@ -1287,7 +1290,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-30-v75";
+const APP_BUILD = "2026-10-30-v76";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1761,8 +1764,12 @@ function gruposDoDia(){
     const fisicoPorTanque = tanques.map(t=>({ t, fisico: fisicoConhecidoAte(t, k.data) }));
     const fisicoCompleto = fisicoPorTanque.every(x=>x.fisico!==null);
     const saldoFisico = fisicoCompleto ? fisicoPorTanque.reduce((s,x)=>s+x.fisico,0) : null;
-    const cls = classificar(diffAbSup, saldoFisico, saldoAb);
     const lancDoDia = lancamentos.filter(l=>l.unidadeId===k.unidadeId && k.tanqueIds.includes(l.tanqueId) && l.data===k.data);
+    // dia só com lançamento(s) de aferição pura (sem movimento, só leitura física): não é
+    // pra entrar na conciliação de saldo (Conciliado/Fora do limite/Divergente/Aguardando) —
+    // fica com status próprio "Aferição", fora dessas contagens.
+    const soAfericao = lancDoDia.length>0 && lancDoDia.every(isLancAfericaoPura);
+    const cls = soAfericao ? {status:"af", label:"Aferição"} : classificar(diffAbSup, saldoFisico, saldoAb);
     const capacidadeTotal = tanques.reduce((s,t)=>s+(t.capacidade||0),0);
     const oc = ocupacao(capacidadeTotal, fisicoCompleto ? saldoFisico : saldoAb);
     // movimento do dia: quanto ENTROU e quanto SAIU (abastecido nos veículos) naquele grupo
@@ -1825,7 +1832,7 @@ function filteredRows(){
   });
 }
 function renderKpis(rows){
-  const c = {ok:0,warn:0,bad:0,pend:0};
+  const c = {ok:0,warn:0,bad:0,pend:0,af:0};
   rows.forEach(r=>c[r.cls.status]++);
   document.getElementById("kpiOk").textContent = c.ok;
   document.getElementById("kpiWarn").textContent = c.warn;
@@ -1839,7 +1846,7 @@ function renderKpis(rows){
   });
 }
 function badgeHtml(cls){
-  const labels = {ok:"Conciliado", warn:"Fora do limite", bad:"Divergente", pend:"Aguardando físico"};
+  const labels = {ok:"Conciliado", warn:"Fora do limite", bad:"Divergente", pend:"Aguardando físico", af:"Aferição"};
   return `<span class="badge ${cls.status}"><span class="dot ${cls.status}"></span>${labels[cls.status]}</span>`;
 }
 function rowHtml(r){
@@ -1853,7 +1860,9 @@ function rowHtml(r){
   const fisicoTxt = r.saldoFisico===null ? "Aguardando" : fmtL(r.saldoFisico);
   const ehAfericao = grupoOrigemAfericao(r);
   const responsaveis = ehAfericao ? grupoResponsaveisAfericao(r) : "";
-  const tipoSub = ehAfericao ? ` · <span class="tipo-af">Aferição${responsaveis?" — "+escapeHtml(responsaveis):""}</span>` : "";
+  // a etiqueta "Aferição" já aparece no badge de status (cls.status==="af") — aqui só
+  // o responsável, pra não repetir a palavra duas vezes na mesma linha
+  const tipoSub = ehAfericao && responsaveis ? ` · <span class="tipo-af">${escapeHtml(responsaveis)}</span>` : "";
   return `<tr data-id="${r.id}">
       <td class="unit-cell"><b>${r.u.nome}</b><span>${r.produto} · ${tanquesTxt} · ${fmtL(r.tanques.reduce((s,t)=>s+(t.capacidade||0),0))} cap.${r.oc?` · ${fmtPct.format(r.oc.pct)}% ocupado`:""}${tipoSub}</span></td>
       <td>${fmtDate(r.data)}</td>
@@ -1894,7 +1903,7 @@ function renderTable(){
   });
 }
 /* ===================== Rendering: Panorama ===================== */
-const STATUS_RANK = {bad:3, warn:2, pend:1, ok:0};
+const STATUS_RANK = {bad:3, warn:2, pend:1, ok:0, af:0};
 // status é por PRODUTO (não por tanque): dois tanques do mesmo produto formam um resumo só por dia
 
 /* ---- Ciclo de aferição: quinzenal por calendário — 1ª quinzena (dias 1 a 10) e
@@ -2130,7 +2139,7 @@ function unidadeSummary(u, grupos){
   const unidadeVisivel = session.role==="admin" || u.id===session.unidadeId;
   if(!unidadeVisivel) return null;
   let pior = null, ultimaData = null;
-  const counts = {ok:0,warn:0,bad:0,pend:0,sem:0};
+  const counts = {ok:0,warn:0,bad:0,pend:0,af:0,sem:0};
   // cada grupo FÍSICO de tanques (mesma bomba, ou tanque isolado) conta separado —
   // dois tanques do mesmo produto sem bomba em comum geram duas linhas de resumo
   const chavesGrupo = new Set(u.tanques.map(t=>grupoDeTanques(u, t.id).slice().sort().join(",")));
@@ -2151,13 +2160,13 @@ function unidadeSummary(u, grupos){
 /* ---- Panorama: mapa do Brasil + gráficos ---- */
 const UF_NOME_BR = Object.fromEntries(BR_MAP.map(s=>[s.i, s.n]));
 let panoUFFiltro = null;
-const PANO_STATUS_LABEL = {ok:"Conciliado", warn:"Fora do limite", bad:"Divergente", pend:"Aguardando físico", sem:"Sem lançamento"};
-const PANO_STATUS_VARCOLOR = {ok:"var(--ok)", warn:"var(--warn)", bad:"var(--bad)", pend:"var(--pend)", sem:"var(--line)"};
+const PANO_STATUS_LABEL = {ok:"Conciliado", warn:"Fora do limite", bad:"Divergente", pend:"Aguardando físico", af:"Aferição", sem:"Sem lançamento"};
+const PANO_STATUS_VARCOLOR = {ok:"var(--ok)", warn:"var(--warn)", bad:"var(--bad)", pend:"var(--pend)", af:"var(--teal)", sem:"var(--line)"};
 function ufAgregado(summaries){
   const porUF = new Map();
   summaries.forEach(s=>{
     const uf = s.u.estado;
-    if(!porUF.has(uf)) porUF.set(uf, { uf, pior:null, qtd:0, counts:{ok:0,warn:0,bad:0,pend:0,sem:0} });
+    if(!porUF.has(uf)) porUF.set(uf, { uf, pior:null, qtd:0, counts:{ok:0,warn:0,bad:0,pend:0,af:0,sem:0} });
     const r = porUF.get(uf);
     r.qtd++;
     const statusAtual = s.status || "sem"; // "sem" = sem lançamento
@@ -2272,11 +2281,11 @@ function pieSlicePath(cx,cy,r,a0,a1){
 let panoStatusFiltro = null;
 function renderPanDonut(summaries){
   const wrap = document.getElementById("panDonutWrap");
-  const counts = {ok:0,warn:0,bad:0,pend:0,sem:0};
+  const counts = {ok:0,warn:0,bad:0,pend:0,af:0,sem:0};
   summaries.forEach(s=>{ counts[s.status||"sem"]++; });
   const total = summaries.length;
   if(!total){ wrap.innerHTML = `<p class="pan-empty">Nenhuma unidade cadastrada.</p>`; return; }
-  const ordem = ["bad","warn","pend","ok","sem"];
+  const ordem = ["bad","warn","pend","ok","af","sem"];
   let ang = -Math.PI/2;
   const cx=70, cy=70, r=66;
   // pizza cheia (sem buraco no meio), clicável: clicar numa fatia filtra as unidades daquele
@@ -2858,7 +2867,7 @@ function renderAfericao(){
 let reportTipo = null;
 let ultimoRelatorioModelo = null;
 let unidadesSelecionadasRelatorio = []; // ids; vazio = todas
-const STATUS_LABEL = {ok:"Conciliado", warn:"Fora do limite", bad:"Divergente", pend:"Aguardando físico"};
+const STATUS_LABEL = {ok:"Conciliado", warn:"Fora do limite", bad:"Divergente", pend:"Aguardando físico", af:"Aferição"};
 
 /* ---- PDF (pdfmake) — paleta, helpers e download ---- */
 const PDFC = { TEAL:'#0e7c86', TEAL_DARK:'#0a5a62', INK:'#1a1a1a', GRAY:'#666666', LIGHT:'#f2f2f2', BORDER:'#dddddd', GREEN:'#1a7a4c', AMBER:'#9a6a0d', RED:'#a9342c', BLUE:'#1B57B7' };
@@ -3349,7 +3358,8 @@ function modeloExecutivo(){
   const grupos = gruposFiltradosRelatorio();
   if(!lista.length){ modeloTexto(m, "Nenhuma unidade para exibir."); return m; }
   lista.forEach(u=>{
-    const gs = grupos.filter(g=>g.u.id===u.id);
+    // aferição pura (sem movimento) não entra na conciliação — fica de fora do % aqui também
+    const gs = grupos.filter(g=>g.u.id===u.id && g.cls.status!=="af");
     const counts = {ok:0,warn:0,bad:0,pend:0};
     gs.forEach(g=>counts[g.cls.status]++);
     const total = gs.length;
@@ -4100,7 +4110,6 @@ function detalheCorpoHtml(g, temExemplo){
             ${supDoDia?`<div class="row"><span>Entrada / Saída Suprimento neste dia</span><b class="num">${fmtL(supDoDia.supEntrada)} / ${fmtL(supDoDia.supSaida)}</b></div>`:""}
             <div class="row"><span>Saldo Físico (total)</span><b class="num">${g.fisicoCompleto?fmtL(g.saldoFisico):"Aguardando leitura em todos os tanques"}</b></div>
             <div class="row"><span>Status</span>${badgeHtml(g.cls)}</div>
-            ${ehAfericao?`<div class="row"><span>Tipo</span><span class="tipo-af tipo-af-tag">Aferição</span></div>`:""}
             ${responsaveis?`<div class="row"><span>Responsável pela aferição</span><b>${escapeHtml(responsaveis)}</b></div>`:""}
           </div>
           <div class="section-label" style="margin-top:18px">Detalhe por tanque</div>`;
