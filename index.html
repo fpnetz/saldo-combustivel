@@ -1288,9 +1288,11 @@ let configGeral = { logoPadraoDataUrl: null }; // logo padrão do sistema, edit�
 let dbNs = null, assetsNs = null, dbAvailable = false;
 let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
-let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
+let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média absoluta, aferição de bomba
+// dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
+// divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-10-30-v77";
+const APP_BUILD = "2026-10-30-v78";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
