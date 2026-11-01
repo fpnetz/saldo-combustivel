@@ -1290,7 +1290,7 @@ let dbErrorMsg = null;
 let MARGEM = { ok: 1, warn: 3 }; // percentuais globais
 let MARGEM_BOMBA_L = { ok: 0.2, warn: 1.0 }; // litros de diferença média absoluta, aferição de bomba
 
-const APP_BUILD = "2026-10-30-v76";
+const APP_BUILD = "2026-10-30-v77";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -2584,7 +2584,7 @@ function renderAfCalDiaExpand(u, afer){
       <span>Bomba ${b?b.numero:"?"}</span>
       <span class="num">${a.pulls.length} aferição(ões)</span>
       <span class="num">${(a.diferencaMedia>=0?"+":"")}${fmtLFino(a.diferencaMedia)} l</span>
-      <span class="afericao-pill ${a.status}">${STATUS_LABEL[a.status]||a.status}</span>
+      <span class="afericao-pill ${a.status}">${STATUS_LABEL_BOMBA[a.status]||a.status}</span>
     </div>`;
   }).join("");
   el.innerHTML = `<div class="afer-dia-card">
@@ -2745,7 +2745,7 @@ function renderAfericao(){
           <td class="num">${fmtLFino(a.litragemPadrao)}</td>
           <td class="num">${a.pulls.length}</td>
           <td class="num">${(a.diferencaMedia>=0?"+":"")}${fmtLFino(a.diferencaMedia)}</td>
-          <td><span class="afericao-pill ${a.status}">${STATUS_LABEL[a.status]||a.status}</span>${urgente?`<div class="afer-urgente">⚠ Solicitar urgentemente aferição da bomba</div>`:""}</td>
+          <td><span class="afericao-pill ${a.status}">${STATUS_LABEL_BOMBA[a.status]||a.status}</span>${urgente?`<div class="afer-urgente">⚠ Solicitar urgentemente aferição da bomba</div>`:""}</td>
           <td>${a.anexoAssetId?`<a href="${a.anexoAssetId}" target="_blank" rel="noopener" class="att-chip">1 anexo</a>`:`<span class="att-chip">—</span>`}</td>
           <td>${podeExcluir?`<button class="btn btn-ghost" data-excluir-afb="${a.id}" style="padding:4px 10px">Excluir</button>`:""}</td>
         </tr>`;
@@ -2868,6 +2868,10 @@ let reportTipo = null;
 let ultimoRelatorioModelo = null;
 let unidadesSelecionadasRelatorio = []; // ids; vazio = todas
 const STATUS_LABEL = {ok:"Conciliado", warn:"Fora do limite", bad:"Divergente", pend:"Aguardando físico", af:"Aferição"};
+// status da aferição de BOMBA (precisão do bico) usa essa régua própria — "Conciliado" é
+// terminologia de saldo (Abastecimento x Suprimento x físico) e não faz sentido aqui, onde
+// o que se mede é o quanto a bomba desvia da litragem padrão no aferidor
+const STATUS_LABEL_BOMBA = {ok:"Dentro da margem", warn:"Fora da margem", bad:"Divergente"};
 
 /* ---- PDF (pdfmake) — paleta, helpers e download ---- */
 const PDFC = { TEAL:'#0e7c86', TEAL_DARK:'#0a5a62', INK:'#1a1a1a', GRAY:'#666666', LIGHT:'#f2f2f2', BORDER:'#dddddd', GREEN:'#1a7a4c', AMBER:'#9a6a0d', RED:'#a9342c', BLUE:'#1B57B7' };
@@ -3570,12 +3574,17 @@ function modeloAfericaoBomba(){
       pulls.length,
       pullsTxt,
       fmtMl(a.diferencaMedia),
-      STATUS_LABEL[a.status]||a.status,
+      STATUS_LABEL_BOMBA[a.status]||a.status,
     ];
   });
   modeloTabela(m, null,
-    ["Unidade","Bomba","Tanque(s)","Data","Litragem padrão","Aferições (pulls)","Diferença por pull","Diferença média (bico)","Status"],
-    linhas, [4,5,7]);
+    ["Unidade","Bomba","Tanque(s)","Data","Litragem padrão","Pulls","Diferença por pull","Dif. média (bico)","Status"],
+    linhas, [4,5,7],
+    [85,42,48,55,75,34,178,68,95]); // larguras fixas, não '*' — com '*' numa só coluna ela
+    // engole 100% do espaço sobrando da paisagem (781pt) de uma vez, abrindo um vão enorme
+    // só ali; com todas fixas e a soma abaixo da largura da página, sobra uma margem comum
+    // à direita (normal), em vez de um buraco no meio da tabela. "Diferença por pull" é a
+    // mais larga porque é a única de tamanho variável (lista de valores por aferição)
   return m;
 }
 
