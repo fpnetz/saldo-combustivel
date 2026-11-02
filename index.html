@@ -1292,7 +1292,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-10-30-v78";
+const APP_BUILD = "2026-10-30-v79";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -2582,11 +2582,14 @@ function renderAfCalDiaExpand(u, afer){
   </div>`).join("");
   const linhasBomba = bombas.map(a=>{
     const b = u && bombasDaUnidade(u).find(x=>x.id===a.bombaId);
+    // status recalculado na hora (não usa a.status salvo): a margem (MARGEM_BOMBA_L) pode
+    // ter mudado depois que o registro foi salvo, e o rótulo tem que refletir a margem atual
+    const st = classificarBomba(a.diferencaMedia);
     return `<div class="afer-dia-item">
       <span>Bomba ${b?b.numero:"?"}</span>
       <span class="num">${a.pulls.length} aferição(ões)</span>
       <span class="num">${(a.diferencaMedia>=0?"+":"")}${fmtLFino(a.diferencaMedia)} l</span>
-      <span class="afericao-pill ${a.status}">${STATUS_LABEL_BOMBA[a.status]||a.status}</span>
+      <span class="afericao-pill ${st}">${STATUS_LABEL_BOMBA[st]||st}</span>
     </div>`;
   }).join("");
   el.innerHTML = `<div class="afer-dia-card">
@@ -2741,13 +2744,14 @@ function renderAfericao(){
         const podeExcluir = podeAgendarUnidade(a.unidadeId);
         const diferencaTotal = (a.diferencas||a.pulls.map(p=>p.diferenca)).reduce((s,d)=>s+(d||0),0);
         const urgente = Math.abs(diferencaTotal) > LIMITE_URGENTE_L;
+        const st = classificarBomba(a.diferencaMedia); // recalcula com a margem atual, não usa a.status salvo
         return `<tr data-id="${a.id}">
           <td>${fmtDate(a.data)}</td>
           <td>Bomba ${b?b.numero:"?"}</td>
           <td class="num">${fmtLFino(a.litragemPadrao)}</td>
           <td class="num">${a.pulls.length}</td>
           <td class="num">${(a.diferencaMedia>=0?"+":"")}${fmtLFino(a.diferencaMedia)}</td>
-          <td><span class="afericao-pill ${a.status}">${STATUS_LABEL_BOMBA[a.status]||a.status}</span>${urgente?`<div class="afer-urgente">⚠ Solicitar urgentemente aferição da bomba</div>`:""}</td>
+          <td><span class="afericao-pill ${st}">${STATUS_LABEL_BOMBA[st]||st}</span>${urgente?`<div class="afer-urgente">⚠ Solicitar urgentemente aferição da bomba</div>`:""}</td>
           <td>${a.anexoAssetId?`<a href="${a.anexoAssetId}" target="_blank" rel="noopener" class="att-chip">1 anexo</a>`:`<span class="att-chip">—</span>`}</td>
           <td>${podeExcluir?`<button class="btn btn-ghost" data-excluir-afb="${a.id}" style="padding:4px 10px">Excluir</button>`:""}</td>
         </tr>`;
@@ -2780,8 +2784,10 @@ function renderAfericao(){
     if(u){
       afericoesBomba.filter(a=>a.unidadeId===u.id && a.data.startsWith(mes)).forEach(a=>{
         const d = Number(a.data.slice(8,10));
+        // recalcula com a margem atual (MARGEM_BOMBA_L), não usa o a.status salvo no registro
+        const st = classificarBomba(a.diferencaMedia);
         const atual = porDiaBomba.get(d);
-        if(!atual || STATUS_RANK[a.status] > STATUS_RANK[atual.status]) porDiaBomba.set(d, a);
+        if(!atual || STATUS_RANK[st] > STATUS_RANK[atual._st]) porDiaBomba.set(d, {...a, _st: st});
       });
     }
     const hojeIso = dstr(new Date());
@@ -2817,7 +2823,7 @@ function renderAfericao(){
       let classeStatus = "";
       if(prazo==="bad") classeStatus = "bad";
       else if(a) classeStatus = a.status;
-      else if(ab) classeStatus = ab.status;
+      else if(ab) classeStatus = ab._st;
       cells += `<div class="afer-cell ${classeStatus}${ehHoje?" today":""}${prazo==="due"?" due":""}${feriadosDia.length?" feriado":""}${ehSel?" sel":""}" data-day="${d}">
         <span class="afer-daynum">${d}</span>
         <span class="afer-badges">
@@ -3557,16 +3563,19 @@ function modeloAfericaoBomba(){
   const regs = afericoesBombaFiltradasRelatorio();
   const m = criarModelo("Relatório de Aferição de Bomba (precisão do bico)", periodoLabel(de, ate));
   if(!regs.length){ modeloTexto(m, "Nenhuma aferição de bomba no período/filtro selecionado."); return m; }
+  // status recalculado com a margem atual (MARGEM_BOMBA_L), não o a.status salvo no registro —
+  // senão aferições antigas continuam exibindo a classificação da margem vigente quando foram salvas
   m.kpis = [
     {label:"Aferições no período", valor: regs.length, cor:PDFC.TEAL},
-    {label:"Fora da margem", valor: regs.filter(a=>a.status==="warn").length, cor:PDFC.BLUE},
-    {label:"Divergentes", valor: regs.filter(a=>a.status==="bad").length, cor:PDFC.RED},
+    {label:"Fora da margem", valor: regs.filter(a=>classificarBomba(a.diferencaMedia)==="warn").length, cor:PDFC.BLUE},
+    {label:"Divergentes", valor: regs.filter(a=>classificarBomba(a.diferencaMedia)==="bad").length, cor:PDFC.RED},
   ];
   const linhas = regs.map(a=>{
     const u = unidades.find(x=>x.id===a.unidadeId);
     const b = u && bombasDaUnidade(u).find(x=>x.id===a.bombaId);
     const pulls = a.pulls || [];
     const pullsTxt = pulls.map(p=>(p.diferenca>=0?"+":"")+fmtNum.format(p.diferenca*1000)).join(", ")+" ml";
+    const st = classificarBomba(a.diferencaMedia);
     return [
       u?u.nome:"—",
       b?("Bomba "+b.numero):"—",
@@ -3576,7 +3585,7 @@ function modeloAfericaoBomba(){
       pulls.length,
       pullsTxt,
       fmtMl(a.diferencaMedia),
-      STATUS_LABEL_BOMBA[a.status]||a.status,
+      STATUS_LABEL_BOMBA[st]||st,
     ];
   });
   modeloTabela(m, null,
