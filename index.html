@@ -1292,7 +1292,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-10-30-v79";
+const APP_BUILD = "2026-10-30-v80";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3170,26 +3170,28 @@ async function gerarComprovantePdf(c, u, listaLancamentos){
     content.push({ text:`Próxima aferição: até ${fmtDate(c.proximaAfericaoVencimento)} (${c.proximaAfericaoLabel||""})`,
       fontSize:9.5, bold:true, color:PDFC.TEAL_DARK, margin:[0,2,0,10] });
   }
-  content.push(pdfH2("Aferição de tanque (saldo físico)"));
-  content.push(pdfStyledTable(
-    ["Tanque","Combustível","Saldo físico (l)","Foto da régua"],
-    c.tanques.map(t=>[t.numero, t.produto, fmtNum.format(t.saldoFisico),
-      t.fotoAssetId?"Anexada":"—"]),
-    { numCols:[2] }
-  ));
-  // fotos da régua anexadas
-  const fotosTanque = [];
-  for(const t of c.tanques){
-    if(!t.fotoAssetId) continue;
-    const img = await urlParaImagemDataUrl(t.fotoAssetId);
-    if(img) fotosTanque.push({ stack:[
-      { image:img, width:150, margin:[0,0,0,3] },
-      { text:`Tanque ${t.numero} — foto da régua`, fontSize:7.5, color:PDFC.GRAY },
-    ], margin:[0,0,10,10] });
-  }
-  if(fotosTanque.length){
-    content.push(pdfH2("Fotos da régua"));
-    content.push({ columns: fotosTanque, columnGap:10 });
+  if(c.tanques.length){
+    content.push(pdfH2("Aferição de tanque (saldo físico)"));
+    content.push(pdfStyledTable(
+      ["Tanque","Combustível","Saldo físico (l)","Foto da régua"],
+      c.tanques.map(t=>[t.numero, t.produto, fmtNum.format(t.saldoFisico),
+        t.fotoAssetId?"Anexada":"—"]),
+      { numCols:[2] }
+    ));
+    // fotos da régua anexadas
+    const fotosTanque = [];
+    for(const t of c.tanques){
+      if(!t.fotoAssetId) continue;
+      const img = await urlParaImagemDataUrl(t.fotoAssetId);
+      if(img) fotosTanque.push({ stack:[
+        { image:img, width:150, margin:[0,0,0,3] },
+        { text:`Tanque ${t.numero} — foto da régua`, fontSize:7.5, color:PDFC.GRAY },
+      ], margin:[0,0,10,10] });
+    }
+    if(fotosTanque.length){
+      content.push(pdfH2("Fotos da régua"));
+      content.push({ columns: fotosTanque, columnGap:10 });
+    }
   }
   if(c.bombas.length){
     content.push(pdfH2("Aferição de bomba"));
@@ -5327,14 +5329,14 @@ function renderPublicAfericao(){
   const tanques = u.tanques.filter(tanqueAtivo);
   if(tanques.length){
     html += `<div class="section-label">Saldo físico por tanque</div>
-      <p class="hint" style="margin-top:-6px">A foto da régua é obrigatória para cada tanque.</p>`;
+      <p class="hint" style="margin-top:-6px">Preencha o saldo físico e a foto da régua apenas dos tanques que você aferiu agora (ambos opcionais).</p>`;
     tanques.forEach(t=>{
       html += `
       <div class="saldo-atual-box">
         <div class="saldo-atual-title">Tanque ${escapeHtml(t.numero)} · ${escapeHtml(t.produto)}</div>
-        <div class="field"><label>Saldo físico (régua) — litros</label><input type="number" min="0" id="afPubFisico-${t.id}"></div>
+        <div class="field"><label>Saldo físico (régua) — litros <span class="muted">(opcional)</span></label><input type="number" min="0" id="afPubFisico-${t.id}"></div>
         <div class="upload-row">
-          <label class="upload-box required" id="afPubFotoBox-${t.id}"><span class="upload-box-text">Foto da régua (obrigatória)</span><div class="upload-box-preview"></div><input type="file" id="afPubFoto-${t.id}" accept="image/*"></label>
+          <label class="upload-box" id="afPubFotoBox-${t.id}"><span class="upload-box-text">Foto da régua (opcional)</span><div class="upload-box-preview"></div><input type="file" id="afPubFoto-${t.id}" accept="image/*"></label>
         </div>
       </div>`;
     });
@@ -5414,11 +5416,9 @@ function renderPublicAfericao(){
     if(!isPreposto && !matricula){ showToast("Informe a matrícula (ou marque que é preposto/terceirizado)."); return; }
     const data = document.getElementById("afPubData").value;
     if(!data){ showToast("Informe a data da aferição."); return; }
-    for(const t of tanques){
-      const fisicoVal = document.getElementById(`afPubFisico-${t.id}`).value;
-      if(fisicoVal===""){ showToast(`Informe o saldo físico do tanque ${t.numero}.`); return; }
-      if(!fotosPorTanque[t.id]){ showToast(`A foto da régua do tanque ${t.numero} é obrigatória.`); return; }
-    }
+    // saldo físico e foto da régua agora são opcionais por tanque — só processa os tanques
+    // em que o saldo físico foi preenchido; a foto não é mais exigida em nenhum caso
+    const tanquesPreenchidos = tanques.filter(t=>document.getElementById(`afPubFisico-${t.id}`).value!=="");
     const bombasParaSalvar = [];
     for(const b of bombas){
       const qtd = Math.max(0, Number(st.bombaQtd[b.id]||0));
@@ -5429,6 +5429,10 @@ function renderPublicAfericao(){
         return;
       }
       bombasParaSalvar.push({ b, diffs });
+    }
+    if(!tanquesPreenchidos.length && !bombasParaSalvar.length){
+      showToast("Preencha o saldo físico de pelo menos um tanque ou a aferição de pelo menos uma bomba.");
+      return;
     }
 
     const btn = document.getElementById("afPubEnviar");
@@ -5454,7 +5458,7 @@ function renderPublicAfericao(){
       };
 
       const tanquesComprovante = [];
-      for(const t of tanques){
+      for(const t of tanquesPreenchidos){
         const fisico = Number(document.getElementById(`afPubFisico-${t.id}`).value);
         let fotoAssetId = null;
         if(assetsNs && fotosPorTanque[t.id]){
