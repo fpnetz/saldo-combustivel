@@ -1300,7 +1300,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-10-30-v83";
+const APP_BUILD = "2026-10-30-v84";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3626,7 +3626,9 @@ function modeloAfericaoBomba(){
     const st = classificarBomba(a.diferencaMedia);
     return [
       u?u.nome:"—",
-      b?("Bomba "+b.numero):"—",
+      // sem o prefixo "Bomba " aqui — o cabeçalho da coluna já diz "Bomba", e o nome real
+      // (ex.: "AJU - DIESEL S10") já é longo o bastante sem repetir a palavra
+      b?b.numero:"—",
       b?(tanquesDaBomba(u,b).map(t=>t.numero).join(", ")||"—"):"—",
       fmtDate(a.data),
       fmtNum.format(a.litragemPadrao)+" l",
@@ -3639,11 +3641,13 @@ function modeloAfericaoBomba(){
   modeloTabela(m, null,
     ["Unidade","Bomba","Tanque(s)","Data","Litragem padrão","Pulls","Diferença por pull","Dif. média (bico)","Status"],
     linhas, [4,5,7],
-    [85,42,48,55,75,34,178,68,95]); // larguras fixas, não '*' — com '*' numa só coluna ela
+    [85,145,38,50,50,26,165,62,88]); // larguras fixas, não '*' — com '*' numa só coluna ela
     // engole 100% do espaço sobrando da paisagem (781pt) de uma vez, abrindo um vão enorme
     // só ali; com todas fixas e a soma abaixo da largura da página, sobra uma margem comum
-    // à direita (normal), em vez de um buraco no meio da tabela. "Diferença por pull" é a
-    // mais larga porque é a única de tamanho variável (lista de valores por aferição)
+    // à direita (normal), em vez de um buraco no meio da tabela. "Bomba" é a 2ª mais larga
+    // (145) porque o nome real da bomba (ex. "SSA - DIESEL S10 01") é texto longo e, numa
+    // coluna estreita, cada linha quebrava em até 4 linhas — inflando a tabela pra 3 páginas
+    // só com 15 registros. "Diferença por pull" continua larga por ter tamanho variável.
   addTabelaPendentes();
   return m;
 }
