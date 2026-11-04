@@ -815,10 +815,6 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
         Consulta
       </div>
-      <div class="tab" data-view="lote" id="tabLote">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
-        Lote
-      </div>
       <div class="tab" data-view="panorama" id="tabPanorama" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z"/><path d="M8 2v16"/><path d="M16 6v16"/></svg>
         Panorama
@@ -842,6 +838,10 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       <div class="tab" data-view="documentacao">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
         Documentação
+      </div>
+      <div class="tab" data-view="lote" id="tabLote">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
+        Lote
       </div>
     </div>
 
@@ -1352,7 +1352,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-04-v88";
+const APP_BUILD = "2026-11-04-v89";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1972,6 +1972,7 @@ function initLote(){
     ate.value = hoje.toISOString().slice(0,10);
     de.value = seteAntes.toISOString().slice(0,10);
   }
+  wireColarGradeLote();
   if(lista.length) carregarGradeLote();
 }
 function datasIntervalo(de, ate){
@@ -1998,8 +1999,8 @@ function carregarGradeLote(){
 function renderGradeLote(u, tanques, datas){
   const theadBlocos = `<tr><th></th>${tanques.map(t=>`<th colspan="${LOTE_CAMPOS.length}" style="text-align:center">Tanque ${escapeHtml(t.numero)} (${escapeHtml(t.produto)})</th>`).join("")}</tr>`;
   const theadCampos = `<tr><th>Data</th>${tanques.map(()=>LOTE_CAMPOS.map(c=>`<th style="white-space:pre;font-weight:400;font-size:11px">${c.label}</th>`).join("")).join("")}</tr>`;
-  const linhas = datas.map(data=>{
-    const celulas = tanques.map(t=>{
+  const linhas = datas.map((data, rowIdx)=>{
+    const celulas = tanques.map((t, tIdx)=>{
       const l = lancamentos.find(x=>x.id===t.id+"__"+data);
       const grupoIds = grupoDeTanques(u, t.id);
       const grupoKey = grupoKeyDe(grupoIds);
@@ -2011,12 +2012,45 @@ function renderGradeLote(u, tanques, datas){
         abSaldo: (l && l.abSaldoManual!==null && l.abSaldoManual!==undefined) ? l.abSaldoManual : "",
         fisico: (l && l.saldoFisico!==null && l.saldoFisico!==undefined) ? l.saldoFisico : "",
       };
-      return LOTE_CAMPOS.map(c=>`<td><input type="number" step="any" inputmode="decimal" style="width:84px" data-lote-tanque="${t.id}" data-lote-campo="${c.key}" data-lote-data="${data}" value="${vals[c.key]===0?0:(vals[c.key]||"")}"></td>`).join("");
+      return LOTE_CAMPOS.map((c, cIdx)=>{
+        const colIdx = tIdx*LOTE_CAMPOS.length + cIdx;
+        return `<td><input type="number" step="any" inputmode="decimal" style="width:84px" data-lote-tanque="${t.id}" data-lote-campo="${c.key}" data-lote-data="${data}" data-lote-row="${rowIdx}" data-lote-col="${colIdx}" value="${vals[c.key]===0?0:(vals[c.key]||"")}"></td>`;
+      }).join("");
     }).join("");
     return `<tr><td class="num" style="white-space:nowrap">${fmtDate(data)}</td>${celulas}</tr>`;
   }).join("");
   document.getElementById("loteGradeWrap").innerHTML =
-    `<div class="table-wrap"><table class="rpt-table"><thead>${theadBlocos}${theadCampos}</thead><tbody>${linhas}</tbody></table></div>`;
+    `<div class="table-wrap"><table class="rpt-table"><thead>${theadBlocos}${theadCampos}</thead><tbody>${linhas}</tbody></table></div>` +
+    `<p class="hint" style="margin-top:6px">Dica: dá pra colar um bloco de várias linhas/colunas copiado de uma planilha — clique na primeira célula numérica onde o bloco deve começar e cole (Ctrl+V).</p>`;
+}
+function celulaLotePara(v){
+  // mesmo parser usado na importação da planilha, reaproveitado pra normalizar o que for colado
+  const n = celulaParaNumero(v);
+  return n===null ? "" : n;
+}
+function wireColarGradeLote(){
+  const wrap = document.getElementById("loteGradeWrap");
+  if(!wrap || wrap.dataset.pasteWired) return;
+  wrap.dataset.pasteWired = "1";
+  wrap.addEventListener("paste", (ev)=>{
+    const alvo = ev.target;
+    if(!(alvo && alvo.matches && alvo.matches("input[data-lote-tanque]"))) return;
+    const texto = (ev.clipboardData || window.clipboardData).getData("text");
+    if(!texto) return;
+    ev.preventDefault();
+    const linhas = texto.replace(/\r/g,"").split("\n").filter((l,i,arr)=> !(i===arr.length-1 && l===""));
+    const row0 = Number(alvo.dataset.loteRow), col0 = Number(alvo.dataset.loteCol);
+    let preenchidas = 0, ignoradas = 0;
+    linhas.forEach((linha, r)=>{
+      linha.split("\t").forEach((valorBruto, c)=>{
+        const inp = wrap.querySelector(`input[data-lote-row="${row0+r}"][data-lote-col="${col0+c}"]`);
+        if(!inp){ ignoradas++; return; }
+        inp.value = celulaLotePara(valorBruto);
+        preenchidas++;
+      });
+    });
+    showToast(`Colado: ${preenchidas} célula(s)${ignoradas?` (${ignoradas} fora da grade, ignorada(s))`:""}.`);
+  });
 }
 async function salvarGradeLote(){
   const unidadeId = document.getElementById("loteUnidade").value;
