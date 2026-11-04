@@ -1335,7 +1335,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-04-v93";
+const APP_BUILD = "2026-11-04-v94";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3196,7 +3196,7 @@ function pdfStyledTable(headers, rows, opts){
     ] },
     layout:{ fillColor:(i)=> i===0 ? PDFC.INK : (i%2===0 ? '#f7f7f7' : null),
       hLineWidth:()=>0.5, vLineWidth:()=>0, hLineColor:()=>PDFC.BORDER,
-      paddingLeft:()=>6, paddingRight:()=>6, paddingTop:()=>5, paddingBottom:()=>5 },
+      paddingLeft:()=>6, paddingRight:()=>6, paddingTop:()=>4, paddingBottom:()=>4 },
     margin:[0,0,0,10],
   };
 }
@@ -3891,7 +3891,9 @@ function modeloAfericaoBomba(){
   modeloTabela(m, null,
     ["Unidade","Bomba","Tanque(s)","Data","Litragem padrão","Pulls","Diferença por pull","Dif. média (bico)","Status"],
     linhas, [4,5,7],
-    [85,145,38,50,50,26,165,62,88]); // larguras fixas, não '*' — com '*' numa só coluna ela
+    [85,145,55,50,50,26,165,62,88]); // larguras fixas, não '*' — com '*' numa só coluna ela
+    // "Tanque(s)" com 55 (era 38): 38 forçava o cabeçalho a quebrar entre "Tanque(s" e ")",
+    // deixando a linha do cabeçalho torta — 55 cabe "Tanque(s)" numa linha só.
     // engole 100% do espaço sobrando da paisagem (781pt) de uma vez, abrindo um vão enorme
     // só ali; com todas fixas e a soma abaixo da largura da página, sobra uma margem comum
     // à direita (normal), em vez de um buraco no meio da tabela. "Bomba" é a 2ª mais larga
