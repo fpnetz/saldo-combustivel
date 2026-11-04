@@ -12,6 +12,9 @@
      não consegue colar as páginas de um PDF já pronto dentro de outro PDF. -->
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
+<!-- SheetJS: leitura da planilha de lançamentos (OneDrive) para a importação automática -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 /* Camada de persistência para rodar fora do Claude Artifact (GitHub Pages).
@@ -956,6 +959,20 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 
     <!-- -------- CADASTRO -------- -->
     <section id="view-cadastro" hidden>
+      <div class="boletim" style="margin-bottom:20px">
+        <div class="boletim-head"><h2>Importação automática (planilha OneDrive)</h2></div>
+        <p class="hint" style="margin:0 0 12px">Cole aqui o link de compartilhamento (edição) da planilha de lançamentos no OneDrive. Enquanto esta página estiver aberta, o site confere a planilha periodicamente e importa sozinho os lançamentos novos — sem precisar lançar um por um na Consulta.</p>
+        <div class="doc-upload-row">
+          <div class="field" style="flex:1 1 320px;min-width:240px;margin:0">
+            <label for="importOneDriveLink">Link da planilha (OneDrive)</label>
+            <input id="importOneDriveLink" placeholder="https://1drv.ms/x/...">
+          </div>
+          <button class="btn btn-ghost" id="importSalvarLink" type="button">Salvar link</button>
+          <button class="btn btn-add" id="importSincronizarAgora" type="button">Sincronizar agora</button>
+        </div>
+        <div id="importStatus" class="hint" style="margin-top:10px"></div>
+      </div>
+
       <div class="fab-row">
         <button class="btn btn-add" id="openNovaUnidade">+ Nova unidade</button>
         <button class="btn btn-ghost" id="testarDb">Testar conexão com o banco</button>
@@ -1300,7 +1317,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-10-30-v84";
+const APP_BUILD = "2026-11-04-v85";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1699,6 +1716,179 @@ async function excluirSuprimento(id){
   try{ await dbNs.doc("suprimentos/"+id).delete(); showToast("Suprimento excluído."); }
   catch(e){ console.error("[saldo] excluirSuprimento falhou:", e); showToast("Não foi possível excluir no servidor (" + (e && e.message ? e.message : "erro") + ")."); }
 }
+
+/* ===================== Importação automática de planilha (OneDrive) =====================
+   A planilha segue o layout do modelo gerado: uma aba por unidade, e dentro dela um
+   bloco de 8 colunas por tanque (igual lado a lado), repetido horizontalmente:
+   Data | Suprimento Entrada | Suprimento Saída | Suprimento Saldo |
+   Abastecimento Entrada | Abastecimento Saída | Abastecimento Saldo | Saldo físico.
+   Linha 2 (índice 1) tem os títulos mesclados "Tanque <numero> (<produto>)" marcando
+   o início de cada bloco; a partir da linha 4 (índice 3) são os dados, um dia por linha. */
+let importSyncTimer = null;
+let importSyncEmAndamento = false;
+
+function oneDriveShareToDirectUrl(shareUrl){
+  // converte um link de compartilhamento do OneDrive pessoal (1drv.ms / onedrive.live.com)
+  // num link de download direto, via a API pública de "shares" da Microsoft.
+  const limpo = (shareUrl||"").trim();
+  if(!limpo) return null;
+  const b64 = btoa(unescape(encodeURIComponent(limpo)))
+    .replace(/=+$/,"").replace(/\//g,"_").replace(/\+/g,"-");
+  return "https://api.onedrive.com/v1.0/shares/u!" + b64 + "/root/content";
+}
+function excelSerialParaISO(n){
+  const ms = Math.round((n - 25569) * 86400 * 1000);
+  const d = new Date(ms);
+  return isNaN(d) ? null : d.toISOString().slice(0,10);
+}
+function celulaParaDataISO(v){
+  if(v===null || v===undefined || v==="") return null;
+  if(v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
+  if(typeof v === "number") return excelSerialParaISO(v);
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  return null;
+}
+function celulaParaNumero(v){
+  if(v===null || v===undefined || v==="") return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+// localiza, na linha 2 (índice 1) de uma aba, os blocos "Tanque <numero>" e sua coluna inicial
+function localizarBlocosTanque(matriz){
+  const linhaBlocos = matriz[1] || [];
+  const blocos = [];
+  linhaBlocos.forEach((val, col)=>{
+    if(typeof val === "string"){
+      const m = val.match(/Tanque\s+(\S+)/i);
+      if(m) blocos.push({ numero: m[1], startCol: col });
+    }
+  });
+  return blocos;
+}
+function renderImportacaoStatus(){
+  const el = document.getElementById("importStatus");
+  const input = document.getElementById("importOneDriveLink");
+  if(input && document.activeElement!==input) input.value = configGeral.onedriveLink || "";
+  if(!el) return;
+  const partes = [];
+  if(configGeral.onedriveUltimaSync) partes.push("Última sincronização: " + new Date(configGeral.onedriveUltimaSync).toLocaleString("pt-BR"));
+  if(configGeral.onedriveUltimoResultado) partes.push(configGeral.onedriveUltimoResultado);
+  el.textContent = partes.join(" — ") || "Ainda não sincronizado.";
+}
+async function salvarLinkOneDrive(){
+  if(!requireAdmin()) return;
+  const link = document.getElementById("importOneDriveLink").value.trim();
+  configGeral = Object.assign({}, configGeral, { onedriveLink: link });
+  if(dbNs){
+    try{ await dbNs.doc("config/geral").set(configGeral); }
+    catch(e){ console.error("[saldo] falha ao salvar link OneDrive:", e); }
+  }
+  showToast(link ? "Link salvo." : "Link removido.");
+  renderImportacaoStatus();
+}
+async function sincronizarPlanilhaOneDrive(manual){
+  if(importSyncEmAndamento) return;
+  const link = (configGeral.onedriveLink||"").trim();
+  if(!link){ if(manual) showToast("Informe e salve o link da planilha primeiro."); return; }
+  if(typeof XLSX === "undefined"){
+    if(manual) showToast("Biblioteca de leitura de planilha não carregou — recarregue a página.");
+    return;
+  }
+  importSyncEmAndamento = true;
+  const btn = document.getElementById("importSincronizarAgora");
+  if(manual && btn){ btn.disabled = true; btn.textContent = "Sincronizando..."; }
+  let importados = 0, unidadesNaoEncontradas = new Set(), erro = null;
+  try{
+    const directUrl = oneDriveShareToDirectUrl(link);
+    const resp = await fetch(directUrl);
+    if(!resp.ok) throw new Error("HTTP " + resp.status + " ao baixar a planilha — confira se o link ainda é válido e está com permissão de edição/leitura pra qualquer pessoa com o link.");
+    const buf = await resp.arrayBuffer();
+    const wb = XLSX.read(buf, { type:"array", cellDates:true });
+    for(const sheetName of wb.SheetNames){
+      const nomeNormalizado = sheetName.trim().toLowerCase();
+      if(nomeNormalizado==="instruções" || nomeNormalizado==="instrucoes") continue;
+      const u = unidades.find(x=>x.nome.trim().toLowerCase()===nomeNormalizado);
+      if(!u){ unidadesNaoEncontradas.add(sheetName); continue; }
+      const ws = wb.Sheets[sheetName];
+      const matriz = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:"" });
+      const blocos = localizarBlocosTanque(matriz)
+        .map(b=>({ ...b, tanque: u.tanques.find(t=>t.numero===b.numero) }))
+        .filter(b=>b.tanque);
+      if(!blocos.length) continue;
+      for(let r=3; r<matriz.length; r++){
+        const linha = matriz[r] || [];
+        for(const b of blocos){
+          const dataISO = celulaParaDataISO(linha[b.startCol]);
+          if(!dataISO) continue;
+          const t = b.tanque;
+          const supE = celulaParaNumero(linha[b.startCol+1]);
+          const supS = celulaParaNumero(linha[b.startCol+2]);
+          const supSaldo = celulaParaNumero(linha[b.startCol+3]);
+          const abE = celulaParaNumero(linha[b.startCol+4]);
+          const abS = celulaParaNumero(linha[b.startCol+5]);
+          const abSaldo = celulaParaNumero(linha[b.startCol+6]);
+          const fisico = celulaParaNumero(linha[b.startCol+7]);
+
+          const l = {
+            id: t.id+"__"+dataISO, unidadeId:u.id, tanqueId:t.id, produto:t.produto, data:dataISO,
+            abEntrada: abE||0, abSaida: abS||0, abSaldoManual: abSaldo,
+            saldoFisico: fisico, printAssetId:null, fotoAssetId:null,
+            obs:"Importado da planilha", exemplo:false,
+          };
+          await saveLancamento(l);
+
+          if(supE!==null || supS!==null || supSaldo!==null){
+            const grupoIds = grupoDeTanques(u, t.id);
+            const grupoKey = grupoKeyDe(grupoIds);
+            const existente = suprimentos.find(s=>s.unidadeId===u.id && s.grupoKey===grupoKey && s.data===dataISO);
+            const s = {
+              id: existente ? existente.id : ("sup-import-"+u.id+"-"+grupoKey.replace(/,/g,"_")+"-"+dataISO),
+              unidadeId:u.id, grupoKey, tanqueIds:grupoIds, data:dataISO,
+              supEntrada: supE||0, supSaida: supS||0, supSaldoManual: supSaldo,
+              obs:"Importado da planilha",
+              criadoPor: "Importação (planilha)", criadoEm: new Date().toISOString(),
+            };
+            await saveSuprimento(s);
+          }
+          importados++;
+        }
+      }
+    }
+    configGeral = Object.assign({}, configGeral, {
+      onedriveUltimaSync: new Date().toISOString(),
+      onedriveUltimoResultado: `${importados} lançamento(s) importado(s)/atualizado(s).` +
+        (unidadesNaoEncontradas.size ? ` Abas não reconhecidas: ${[...unidadesNaoEncontradas].join(", ")}.` : ""),
+    });
+    if(dbNs){ try{ await dbNs.doc("config/geral").set(configGeral); }catch(e){} }
+    renderTable();
+    const viewAtual = document.querySelector(".tab.active")?.dataset.view || "dashboard";
+    if(viewAtual==="afericao") renderAfericao();
+  }catch(e){
+    console.error("[saldo] sincronizarPlanilhaOneDrive falhou:", e);
+    erro = e && e.message ? e.message : String(e);
+    configGeral = Object.assign({}, configGeral, {
+      onedriveUltimaSync: new Date().toISOString(),
+      onedriveUltimoResultado: "Falhou: " + erro,
+    });
+    if(dbNs){ try{ await dbNs.doc("config/geral").set(configGeral); }catch(e2){} }
+  }finally{
+    importSyncEmAndamento = false;
+    renderImportacaoStatus();
+    if(manual && btn){ btn.disabled = false; btn.textContent = "Sincronizar agora"; }
+    if(manual) showToast(erro ? ("Falha ao sincronizar: "+erro) : `Sincronizado — ${importados} lançamento(s).`);
+  }
+}
+function iniciarAutoSincroniaImportacao(){
+  if(importSyncTimer) return;
+  importSyncTimer = setInterval(()=>{
+    if(session && session.role==="admin" && configGeral.onedriveLink) sincronizarPlanilhaOneDrive(false);
+  }, 5*60*1000); // a cada 5 minutos, enquanto esta aba do navegador estiver aberta
+}
+
 // melhor saldo conhecido de um tanque agora (físico do último lançamento, senão o de abastecimento)
 function saldoAtualTanque(t){
   const ls = lancamentosDoTanque(t.id);
@@ -4277,6 +4467,7 @@ function requireAdmin(){
   return true;
 }
 function renderCadastro(){
+  renderImportacaoStatus();
   const wrap = document.getElementById("unidadesList");
   wrap.innerHTML = unidades.map(u=>{
     const uAtiva = unidadeAtiva(u);
@@ -5260,6 +5451,10 @@ async function enterApp(){
   populateFilterUnidadesRelatorio();
   renderTable();
   setView("dashboard");
+  if(session.role==="admin"){
+    iniciarAutoSincroniaImportacao();
+    if(configGeral.onedriveLink) sincronizarPlanilhaOneDrive(false);
+  }
 }
 
 /* ===================== Link público de aferição (sem login) =====================
@@ -5653,6 +5848,8 @@ document.getElementById("openLinkAfericaoGlobal2").addEventListener("click", ope
 document.getElementById("refreshDataBtn").addEventListener("click", refreshAllData);
 document.getElementById("openNovoUsuario").addEventListener("click", openNovoUsuario);
 document.getElementById("testarDb").addEventListener("click", testarConexaoDb);
+document.getElementById("importSalvarLink").addEventListener("click", salvarLinkOneDrive);
+document.getElementById("importSincronizarAgora").addEventListener("click", ()=>sincronizarPlanilhaOneDrive(true));
 document.getElementById("openNovoAgendamento").addEventListener("click", openNovoAgendamento);
 let docAnexoFile = null;
 wireUploadBox("docAnexoBox", "docAnexo", f=>{ docAnexoFile = f; });
