@@ -1317,7 +1317,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-04-v86";
+const APP_BUILD = "2026-11-04-v87";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1724,8 +1724,10 @@ async function excluirSuprimento(id){
    Abastecimento Entrada | Abastecimento Saída | Abastecimento Saldo | Saldo físico.
    Linha 2 (índice 1) tem os títulos mesclados "Tanque <numero> (<produto>)" marcando
    o início de cada bloco; a partir da linha 4 (índice 3) são os dados, um dia por linha.
-   Lê via a URL pública "gviz/tq?tqx=out:csv&sheet=<nome>" do Google Sheets — exige só que
-   a planilha esteja compartilhada como "Qualquer pessoa com o link pode visualizar" (ou editar),
+   Lê via a URL pública "/export?format=xlsx" do Google Sheets — baixa a planilha inteira
+   (todas as abas, grade crua, sem a "interpretação" de cabeçalho que o endpoint gviz/tq faz)
+   e processa com a mesma biblioteca (SheetJS) usada antes pro OneDrive. Exige só que a
+   planilha esteja compartilhada como "Qualquer pessoa com o link pode visualizar" (ou editar),
    sem precisar de login/API key, e funciona direto do navegador (CORS liberado pelo Google). */
 let importSyncTimer = null;
 let importSyncEmAndamento = false;
@@ -1738,16 +1740,6 @@ function googleSheetsIdDeLink(link){
   // aceita também o ID puro, caso o usuário cole só o ID
   if(/^[a-zA-Z0-9-_]{20,}$/.test(limpo)) return limpo;
   return null;
-}
-async function buscarAbaGoogleSheets(fileId, sheetName){
-  const url = `https://docs.google.com/spreadsheets/d/${fileId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
-  const resp = await fetch(url);
-  if(!resp.ok) return null; // aba não existe ou planilha não compartilhada — tratado como "não encontrada"
-  const csvText = await resp.text();
-  if(/^<HTML|^<!DOCTYPE/i.test(csvText.trim())) return null; // Google devolve uma página de erro em vez de CSV
-  const wb = XLSX.read(csvText, { type:"string", raw:true });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  return XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:"" });
 }
 function excelSerialParaISO(n){
   const ms = Math.round((n - 25569) * 86400 * 1000);
@@ -1834,11 +1826,17 @@ async function sincronizarPlanilha(manual){
   if(manual && btn){ btn.disabled = true; btn.textContent = "Sincronizando..."; }
   let importados = 0, unidadesNaoEncontradas = new Set(), erro = null;
   try{
+    const exportUrl = `https://docs.google.com/spreadsheets/d/${fileId}/export?format=xlsx`;
+    const resp = await fetch(exportUrl);
+    if(!resp.ok) throw new Error("HTTP " + resp.status + " ao baixar a planilha — confira se o link está certo e compartilhado como \"Qualquer pessoa com o link pode visualizar\".");
+    const buf = await resp.arrayBuffer();
+    const wb = XLSX.read(buf, { type:"array", cellDates:true });
     let algumaAbaLida = false;
     for(const u of unidades){
-      const matriz = await buscarAbaGoogleSheets(fileId, u.nome);
-      if(!matriz){ unidadesNaoEncontradas.add(u.nome); continue; }
+      const sheetName = wb.SheetNames.find(n=>n.trim().toLowerCase()===u.nome.trim().toLowerCase());
+      if(!sheetName){ unidadesNaoEncontradas.add(u.nome); continue; }
       algumaAbaLida = true;
+      const matriz = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header:1, raw:true, defval:"" });
       const blocos = localizarBlocosTanque(matriz)
         .map(b=>({ ...b, tanque: u.tanques.find(t=>t.numero===b.numero) }))
         .filter(b=>b.tanque);
