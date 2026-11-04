@@ -1335,7 +1335,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-04-v92";
+const APP_BUILD = "2026-11-04-v93";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -2048,6 +2048,26 @@ function fmtDate(iso){ const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y; }
 function allRows(){
   return gruposDoDia().sort((a,b)=> a.data<b.data?1:(a.data>b.data?-1: a.u.nome.localeCompare(b.u.nome)));
 }
+// situação ATUAL de cada unidade (não cada dia do histórico): olha o lançamento mais recente
+// de cada grupo de tanques da unidade (ignora linhas de "Aferição" pura, que não entram na
+// conciliação) e usa o pior status entre eles — assim os indicadores e o filtro por status
+// mostram só o que precisa de atenção agora, sem contar cada dia divergente que já passou.
+const SEVERIDADE_STATUS = { bad:3, warn:2, pend:1, ok:0 };
+function statusAtualPorUnidade(rows){
+  const porGrupo = new Map();
+  rows.forEach(r=>{
+    if(r.cls.status==="af") return;
+    const key = r.u.id+"|"+r.grupoKey;
+    const atual = porGrupo.get(key);
+    if(!atual || r.data > atual.data) porGrupo.set(key, r);
+  });
+  const porUnidade = new Map();
+  porGrupo.forEach(r=>{
+    const atual = porUnidade.get(r.u.id);
+    if(!atual || (SEVERIDADE_STATUS[r.cls.status]||0) > (SEVERIDADE_STATUS[atual.cls.status]||0)) porUnidade.set(r.u.id, r);
+  });
+  return [...porUnidade.values()];
+}
 function filteredRows(){
   const busca = document.getElementById("fBusca").value.trim().toLowerCase();
   const unidadeId = document.getElementById("fUnidade").value;
@@ -2055,7 +2075,11 @@ function filteredRows(){
   const status = document.getElementById("fStatus").value;
   const de = document.getElementById("fDe").value;
   const ate = document.getElementById("fAte").value;
-  return allRows().filter(r=>{
+  // com um status selecionado (clicando num card de KPI, ou no filtro), mostra só a situação
+  // atual de cada unidade nesse status — não cada dia histórico que já teve esse status.
+  // Sem status selecionado ("Todos"), continua mostrando o histórico completo pra consulta.
+  const base = status ? statusAtualPorUnidade(allRows()) : allRows();
+  return base.filter(r=>{
     if(session.role==="controlador" && r.u.id!==session.unidadeId) return false;
     if(busca && !(r.u.nome.toLowerCase().includes(busca) || r.tanques.some(t=>t.numero.toLowerCase().includes(busca)) || r.lancDoDia.some(l=>l.responsavelNome && l.responsavelNome.toLowerCase().includes(busca)))) return false;
     if(unidadeId && r.u.id!==unidadeId) return false;
@@ -2067,8 +2091,9 @@ function filteredRows(){
   });
 }
 function renderKpis(rows){
+  const atuais = statusAtualPorUnidade(rows);
   const c = {ok:0,warn:0,bad:0,pend:0,af:0};
-  rows.forEach(r=>c[r.cls.status]++);
+  atuais.forEach(r=>c[r.cls.status]++);
   document.getElementById("kpiOk").textContent = c.ok;
   document.getElementById("kpiWarn").textContent = c.warn;
   document.getElementById("kpiBad").textContent = c.bad;
