@@ -1335,7 +1335,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-04-v91";
+const APP_BUILD = "2026-11-04-v92";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1989,10 +1989,17 @@ function gruposDoDia(){
     const saldoAb = tanques.reduce((s,t)=>s+saldoAbastecimentoAte(t, k.data),0);
     const saldoSup = saldoSuprimentoAteGrupo(k.unidadeId, k.tanqueIds, k.data);
     const diffAbSup = saldoSup - saldoAb;
-    const fisicoPorTanque = tanques.map(t=>({ t, fisico: fisicoConhecidoAte(t, k.data) }));
+    const lancDoDia = lancamentos.filter(l=>l.unidadeId===k.unidadeId && k.tanqueIds.includes(l.tanqueId) && l.data===k.data);
+    // saldo físico usado pra status/diferença é só o que foi lido NESSE dia (não um valor
+    // de régua de um dia anterior carregado pra frente) — senão qualquer drift acumulado
+    // desde a última aferição aparece como "Divergente" num dia que a unidade nem leu a régua.
+    const fisicoPorTanque = tanques.map(t=>{
+      const lDia = lancDoDia.find(l=>l.tanqueId===t.id);
+      const fisico = (lDia && lDia.saldoFisico!==null && lDia.saldoFisico!==undefined) ? lDia.saldoFisico : null;
+      return { t, fisico };
+    });
     const fisicoCompleto = fisicoPorTanque.every(x=>x.fisico!==null);
     const saldoFisico = fisicoCompleto ? fisicoPorTanque.reduce((s,x)=>s+x.fisico,0) : null;
-    const lancDoDia = lancamentos.filter(l=>l.unidadeId===k.unidadeId && k.tanqueIds.includes(l.tanqueId) && l.data===k.data);
     // dia só com lançamento(s) de aferição pura (sem movimento, só leitura física): não é
     // pra entrar na conciliação de saldo (Conciliado/Fora do limite/Divergente/Aguardando) —
     // fica com status próprio "Aferição", fora dessas contagens.
