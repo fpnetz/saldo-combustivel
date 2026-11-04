@@ -815,6 +815,10 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
         Consulta
       </div>
+      <div class="tab" data-view="lote" id="tabLote">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
+        Lote
+      </div>
       <div class="tab" data-view="panorama" id="tabPanorama" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z"/><path d="M8 2v16"/><path d="M16 6v16"/></svg>
         Panorama
@@ -840,6 +844,37 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
         Documentação
       </div>
     </div>
+
+    <!-- -------- LANÇAMENTO EM LOTE -------- -->
+    <section id="view-lote" hidden>
+      <div class="page-head" style="margin-bottom:10px">
+        <div>
+          <p class="hint" style="margin:0">Lance vários dias de uma vez numa grade, igual uma planilha — mas salva direto no site, sem precisar de arquivo externo.</p>
+        </div>
+      </div>
+      <div class="boletim" style="margin-bottom:16px">
+        <div class="doc-upload-row">
+          <div class="field" style="flex:1 1 220px;min-width:180px;margin:0">
+            <label for="loteUnidade">Unidade</label>
+            <select id="loteUnidade"></select>
+          </div>
+          <div class="field" style="flex:0 0 160px;margin:0">
+            <label for="loteDe">De</label>
+            <input type="date" id="loteDe">
+          </div>
+          <div class="field" style="flex:0 0 160px;margin:0">
+            <label for="loteAte">Até</label>
+            <input type="date" id="loteAte">
+          </div>
+          <button class="btn btn-ghost" id="loteCarregar" type="button">Carregar grade</button>
+        </div>
+      </div>
+      <div id="loteGradeWrap"></div>
+      <div class="fab-row" style="margin-top:14px">
+        <button class="btn btn-add" id="loteSalvar" type="button">Salvar lançamentos</button>
+        <span id="loteStatus" class="hint"></span>
+      </div>
+    </section>
 
     <!-- -------- PANORAMA -------- -->
     <section id="view-panorama">
@@ -1317,7 +1352,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-04-v87";
+const APP_BUILD = "2026-11-04-v88";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1912,6 +1947,135 @@ function iniciarAutoSincroniaImportacao(){
   importSyncTimer = setInterval(()=>{
     if(session && session.role==="admin" && configGeral.planilhaLink) sincronizarPlanilha(false);
   }, 5*60*1000); // a cada 5 minutos, enquanto esta aba do navegador estiver aberta
+}
+
+/* ===================== Lançamento em lote (grade dentro do site) =====================
+   Mesma ideia da planilha (um bloco de colunas por tanque, uma linha por dia), mas
+   editada e salva direto no site — sem arquivo externo, sem sincronização. */
+const LOTE_CAMPOS = [
+  { key:"supEntrada", label:"Sup.\nEntrada" }, { key:"supSaida", label:"Sup.\nSaída" }, { key:"supSaldo", label:"Sup.\nSaldo" },
+  { key:"abEntrada", label:"Ab.\nEntrada" }, { key:"abSaida", label:"Ab.\nSaída" }, { key:"abSaldo", label:"Ab.\nSaldo" },
+  { key:"fisico", label:"Saldo\nfísico" },
+];
+function unidadesPermitidasLote(){
+  return (session.role==="admin" ? unidades : unidades.filter(u=>u.id===session.unidadeId)).filter(unidadeAtiva);
+}
+function initLote(){
+  const sel = document.getElementById("loteUnidade");
+  const lista = unidadesPermitidasLote();
+  sel.innerHTML = lista.map(u=>`<option value="${u.id}">${escapeHtml(u.nome)}</option>`).join("");
+  if(session.role==="controlador"){ sel.disabled = true; }
+  const de = document.getElementById("loteDe"), ate = document.getElementById("loteAte");
+  if(!de.value || !ate.value){
+    const hoje = new Date();
+    const seteAntes = new Date(hoje.getTime() - 6*86400000);
+    ate.value = hoje.toISOString().slice(0,10);
+    de.value = seteAntes.toISOString().slice(0,10);
+  }
+  if(lista.length) carregarGradeLote();
+}
+function datasIntervalo(de, ate){
+  const out = [];
+  if(!de || !ate || de>ate) return out;
+  let d = new Date(de+"T00:00:00");
+  const fim = new Date(ate+"T00:00:00");
+  while(d<=fim){ out.push(d.toISOString().slice(0,10)); d = new Date(d.getTime()+86400000); }
+  return out;
+}
+function carregarGradeLote(){
+  const unidadeId = document.getElementById("loteUnidade").value;
+  const u = unidades.find(x=>x.id===unidadeId);
+  if(!u){ document.getElementById("loteGradeWrap").innerHTML = `<div class="empty"><b>Nenhuma unidade disponível</b></div>`; return; }
+  const de = document.getElementById("loteDe").value, ate = document.getElementById("loteAte").value;
+  const datas = datasIntervalo(de, ate);
+  const tanques = u.tanques.filter(tanqueAtivo);
+  if(!datas.length || !tanques.length){
+    document.getElementById("loteGradeWrap").innerHTML = `<div class="empty"><b>Nada para mostrar</b>Confira o período e se a unidade tem tanques ativos.</div>`;
+    return;
+  }
+  renderGradeLote(u, tanques, datas);
+}
+function renderGradeLote(u, tanques, datas){
+  const theadBlocos = `<tr><th></th>${tanques.map(t=>`<th colspan="${LOTE_CAMPOS.length}" style="text-align:center">Tanque ${escapeHtml(t.numero)} (${escapeHtml(t.produto)})</th>`).join("")}</tr>`;
+  const theadCampos = `<tr><th>Data</th>${tanques.map(()=>LOTE_CAMPOS.map(c=>`<th style="white-space:pre;font-weight:400;font-size:11px">${c.label}</th>`).join("")).join("")}</tr>`;
+  const linhas = datas.map(data=>{
+    const celulas = tanques.map(t=>{
+      const l = lancamentos.find(x=>x.id===t.id+"__"+data);
+      const grupoIds = grupoDeTanques(u, t.id);
+      const grupoKey = grupoKeyDe(grupoIds);
+      const s = suprimentos.find(x=>x.unidadeId===u.id && x.grupoKey===grupoKey && x.data===data);
+      const vals = {
+        supEntrada: s ? s.supEntrada : "", supSaida: s ? s.supSaida : "",
+        supSaldo: (s && s.supSaldoManual!==null && s.supSaldoManual!==undefined) ? s.supSaldoManual : "",
+        abEntrada: l ? l.abEntrada : "", abSaida: l ? l.abSaida : "",
+        abSaldo: (l && l.abSaldoManual!==null && l.abSaldoManual!==undefined) ? l.abSaldoManual : "",
+        fisico: (l && l.saldoFisico!==null && l.saldoFisico!==undefined) ? l.saldoFisico : "",
+      };
+      return LOTE_CAMPOS.map(c=>`<td><input type="number" step="any" inputmode="decimal" style="width:84px" data-lote-tanque="${t.id}" data-lote-campo="${c.key}" data-lote-data="${data}" value="${vals[c.key]===0?0:(vals[c.key]||"")}"></td>`).join("");
+    }).join("");
+    return `<tr><td class="num" style="white-space:nowrap">${fmtDate(data)}</td>${celulas}</tr>`;
+  }).join("");
+  document.getElementById("loteGradeWrap").innerHTML =
+    `<div class="table-wrap"><table class="rpt-table"><thead>${theadBlocos}${theadCampos}</thead><tbody>${linhas}</tbody></table></div>`;
+}
+async function salvarGradeLote(){
+  const unidadeId = document.getElementById("loteUnidade").value;
+  const u = unidades.find(x=>x.id===unidadeId);
+  if(!u) return;
+  const btn = document.getElementById("loteSalvar");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  const statusEl = document.getElementById("loteStatus");
+  let salvosLanc = 0, salvosSup = 0;
+  try{
+    // agrupa inputs por (tanqueId, data)
+    const porChave = new Map();
+    document.querySelectorAll("#loteGradeWrap [data-lote-tanque]").forEach(inp=>{
+      const chave = inp.dataset.loteTanque+"__"+inp.dataset.loteData;
+      if(!porChave.has(chave)) porChave.set(chave, { tanqueId: inp.dataset.loteTanque, data: inp.dataset.loteData, campos:{} });
+      const v = inp.value.trim();
+      porChave.get(chave).campos[inp.dataset.loteCampo] = v===""? null : Number(v);
+    });
+    for(const { tanqueId, data, campos } of porChave.values()){
+      const t = u.tanques.find(x=>x.id===tanqueId);
+      if(!t) continue;
+      const temAbastecimento = campos.abEntrada!==null || campos.abSaida!==null || campos.abSaldo!==null || campos.fisico!==null;
+      const temSuprimento = campos.supEntrada!==null || campos.supSaida!==null || campos.supSaldo!==null;
+      if(!temAbastecimento && !temSuprimento) continue; // linha em branco — nada a salvar
+      if(temAbastecimento){
+        const existente = lancamentos.find(x=>x.id===tanqueId+"__"+data);
+        const l = {
+          id: tanqueId+"__"+data, unidadeId:u.id, tanqueId, produto:t.produto, data,
+          abEntrada: campos.abEntrada||0, abSaida: campos.abSaida||0, abSaldoManual: campos.abSaldo,
+          saldoFisico: campos.fisico, printAssetId: existente?existente.printAssetId||null:null,
+          fotoAssetId: existente?existente.fotoAssetId||null:null, obs: existente?existente.obs||"":"", exemplo:false,
+        };
+        await saveLancamento(l);
+        salvosLanc++;
+      }
+      if(temSuprimento){
+        const grupoIds = grupoDeTanques(u, tanqueId);
+        const grupoKey = grupoKeyDe(grupoIds);
+        const existente = suprimentos.find(s=>s.unidadeId===u.id && s.grupoKey===grupoKey && s.data===data);
+        const s = {
+          id: existente ? existente.id : ("sup-"+u.id+"-"+grupoKey.replace(/,/g,"_")+"-"+data+"-"+Date.now().toString(36)),
+          unidadeId:u.id, grupoKey, tanqueIds:grupoIds, data,
+          supEntrada: campos.supEntrada||0, supSaida: campos.supSaida||0, supSaldoManual: campos.supSaldo,
+          obs: existente?existente.obs||"":"", criadoPor: session.nome, criadoEm: new Date().toISOString(),
+        };
+        await saveSuprimento(s);
+        salvosSup++;
+      }
+    }
+    renderTable();
+    statusEl.textContent = `Salvo: ${salvosLanc} lançamento(s) de abastecimento, ${salvosSup} de suprimento.`;
+    showToast("Lançamentos salvos.");
+    carregarGradeLote();
+  }catch(e){
+    console.error("[saldo] salvarGradeLote falhou:", e);
+    statusEl.textContent = "Erro ao salvar: " + (e && e.message ? e.message : "erro desconhecido");
+  }finally{
+    btn.disabled = false; btn.textContent = "Salvar lançamentos";
+  }
 }
 
 // melhor saldo conhecido de um tanque agora (físico do último lançamento, senão o de abastecimento)
@@ -5380,6 +5544,7 @@ function initLogoPadrao(){
 // título + subtítulo do cabeçalho mudam conforme o módulo (aba) selecionado
 const VIEW_TITULOS = {
   dashboard:    { titulo:"Conciliação de Saldo", subtitulo:"Suprimento × Abastecimento × Saldo físico, por unidade e tanque." },
+  lote:         { titulo:"Lançamento em lote", subtitulo:"Lance vários dias de uma vez, numa grade — salva direto no site." },
   panorama:     { titulo:"Panorama", subtitulo:"Visão geral do status de conciliação por unidade." },
   cadastro:     { titulo:"Cadastro", subtitulo:"Unidades, tanques e bombas." },
   usuarios:     { titulo:"Usuários", subtitulo:"Contas de acesso ao sistema (Admin/Controlador)." },
@@ -5391,6 +5556,7 @@ function setView(view){
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.view===view));
   document.getElementById("view-panorama").hidden = view!=="panorama";
   document.getElementById("view-dashboard").hidden = view!=="dashboard";
+  document.getElementById("view-lote").hidden = view!=="lote";
   document.getElementById("view-cadastro").hidden = view!=="cadastro";
   document.getElementById("view-usuarios").hidden = view!=="usuarios";
   document.getElementById("view-afericao").hidden = view!=="afericao";
@@ -5400,6 +5566,7 @@ function setView(view){
   document.getElementById("pageTitleText").textContent = info.titulo;
   document.getElementById("pageSubtitleText").textContent = info.subtitulo;
   if(view==="cadastro") renderCadastro();
+  if(view==="lote") initLote();
   if(view==="usuarios") renderUsuarios();
   if(view==="panorama") renderPanorama();
   if(view==="afericao") renderAfericao();
@@ -5875,6 +6042,11 @@ document.getElementById("openNovoUsuario").addEventListener("click", openNovoUsu
 document.getElementById("testarDb").addEventListener("click", testarConexaoDb);
 document.getElementById("importSalvarLink").addEventListener("click", salvarLinkPlanilha);
 document.getElementById("importSincronizarAgora").addEventListener("click", ()=>sincronizarPlanilha(true));
+document.getElementById("loteUnidade").addEventListener("change", carregarGradeLote);
+document.getElementById("loteDe").addEventListener("change", carregarGradeLote);
+document.getElementById("loteAte").addEventListener("change", carregarGradeLote);
+document.getElementById("loteCarregar").addEventListener("click", carregarGradeLote);
+document.getElementById("loteSalvar").addEventListener("click", salvarGradeLote);
 document.getElementById("openNovoAgendamento").addEventListener("click", openNovoAgendamento);
 let docAnexoFile = null;
 wireUploadBox("docAnexoBox", "docAnexo", f=>{ docAnexoFile = f; });
