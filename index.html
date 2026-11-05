@@ -1341,7 +1341,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-05-v101";
+const APP_BUILD = "2026-11-05-v102";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3225,7 +3225,12 @@ function pdfStyledTable(headers, rows, opts){
     ] },
     layout:{ fillColor:(i)=> i===0 ? PDFC.INK : (i%2===0 ? '#f7f7f7' : null),
       hLineWidth:()=>0.5, vLineWidth:()=>0, hLineColor:()=>PDFC.BORDER,
-      paddingLeft:()=>6, paddingRight:()=>6, paddingTop:()=>3, paddingBottom:()=>3 },
+      // padding do pdfMake soma POR FORA da largura declarada de cada coluna (não é descontado
+      // dela) — com 6pt dos dois lados e muitas colunas (ex.: 9 na tabela de Aferição de Bomba),
+      // isso empilhava 108pt a mais do que o previsto na largura total da tabela, estourando a
+      // largura útil da página e cortando as últimas colunas na borda. 4pt reduz essa sobra sem
+      // apertar demais a leitura.
+      paddingLeft:()=>4, paddingRight:()=>4, paddingTop:()=>3, paddingBottom:()=>3 },
     margin:[0,0,0,6],
   };
 }
@@ -3934,15 +3939,19 @@ function modeloAfericaoBomba(){
   modeloTabela(m, null,
     ["Unidade","Bomba","Tanque(s)","Data","Litragem padrão","Pulls","Diferença por pull","Dif. média (bico)","Status"],
     linhas, [4,5,7],
-    [85,145,55,50,50,26,165,62,88]); // larguras fixas, não '*' — com '*' numa só coluna ela
-    // "Tanque(s)" com 55 (era 38): 38 forçava o cabeçalho a quebrar entre "Tanque(s" e ")",
-    // deixando a linha do cabeçalho torta — 55 cabe "Tanque(s)" numa linha só.
+    [85,130,48,50,50,26,155,62,88]); // larguras fixas, não '*' — com '*' numa só coluna ela
+    // "Tanque(s)" com 48 (era 38): 38 forçava o cabeçalho a quebrar entre "Tanque(s" e ")",
+    // deixando a linha do cabeçalho torta — 48 cabe "Tanque(s)" numa linha só.
     // engole 100% do espaço sobrando da paisagem (781pt) de uma vez, abrindo um vão enorme
     // só ali; com todas fixas e a soma abaixo da largura da página, sobra uma margem comum
     // à direita (normal), em vez de um buraco no meio da tabela. "Bomba" é a 2ª mais larga
-    // (145) porque o nome real da bomba (ex. "SSA - DIESEL S10 01") é texto longo e, numa
+    // (130) porque o nome real da bomba (ex. "SSA - DIESEL S10 01") é texto longo e, numa
     // coluna estreita, cada linha quebrava em até 4 linhas — inflando a tabela pra 3 páginas
     // só com 15 registros. "Diferença por pull" continua larga por ter tamanho variável.
+    // a soma dessas 9 larguras (694pt) fica bem abaixo dos 781,89pt úteis da página em
+    // paisagem — a diferença (~88pt) é a folga que o padding de cada célula consome por fora
+    // (ver comentário no pdfStyledTable); sem essa folga, "Status" saía cortado na borda da
+    // página porque a largura real da tabela (soma + padding) passava do limite da página.
   addTabelaPendentes();
   return m;
 }
