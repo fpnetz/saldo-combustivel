@@ -1335,7 +1335,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-05-v95";
+const APP_BUILD = "2026-11-05-v96";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3196,7 +3196,7 @@ function pdfStyledTable(headers, rows, opts){
     ] },
     layout:{ fillColor:(i)=> i===0 ? PDFC.INK : (i%2===0 ? '#f7f7f7' : null),
       hLineWidth:()=>0.5, vLineWidth:()=>0, hLineColor:()=>PDFC.BORDER,
-      paddingLeft:()=>6, paddingRight:()=>6, paddingTop:()=>4, paddingBottom:()=>4 },
+      paddingLeft:()=>6, paddingRight:()=>6, paddingTop:()=>3, paddingBottom:()=>3 },
     margin:[0,0,0,6],
   };
 }
@@ -3941,8 +3941,12 @@ function modeloParaPdfContent(m){
   if(m.kpis.length) content.push(pdfKpiRow(m.kpis.map(k=>[k.label, k.valor, k.cor])));
   m.blocos.forEach(b=>{
     if(b.tipo==="texto"){ content.push({text:b.texto, fontSize:9.5, color:PDFC.GRAY, margin:[0,6,0,6]}); return; }
-    if(b.titulo) content.push(pdfH2(b.titulo));
-    content.push(pdfStyledTable(b.headers, b.linhas, { numCols:b.numCols, widths:b.widths }));
+    const tabela = pdfStyledTable(b.headers, b.linhas, { numCols:b.numCols, widths:b.widths });
+    // título + tabela viajam juntos (unbreakable): sem isso, quando sobrava espaço só pro
+    // título mas não pra tabela, o pdfMake deixava o título "órfão" sozinho no fim de uma
+    // página e a tabela inteira pulava pra próxima — pior do que simplesmente quebrar os dois
+    // juntos antes.
+    content.push(b.titulo ? { stack:[pdfH2(b.titulo), tabela], unbreakable:true } : tabela);
   });
   return content;
 }
