@@ -1335,7 +1335,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-05-v96";
+const APP_BUILD = "2026-11-05-v97";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3848,7 +3848,14 @@ function modeloAfericaoBomba(){
   // pendentes — o botão "ver lista" é só um atalho na tela, quem imprime/baixa o PDF
   // precisa ver essa lista no próprio documento
   const addTabelaPendentes = ()=>{
-    if(pendentes.length){
+    if(!pendentes.length) return;
+    // lista curta (o caso comum: 1-5 bombas) vira uma linha de texto em vez de tabela inteira
+    // (cabeçalho preto + padding) — uma tabela de verdade pra 1 item só é desproporcional e,
+    // junto com a tabela principal quase lotando a página, empurra esse bloco inteiro pra uma
+    // 2ª página que sobra quase em branco. Texto compacto cabe na mesma página quase sempre.
+    if(pendentes.length<=5){
+      modeloTexto(m, `Bombas pendentes de aferição no período: ${pendentes.map(p=>p.label).join(" · ")}.`);
+    } else {
       modeloTabela(m, "Bombas pendentes de aferição no período",
         ["Unidade","Bomba"], pendentes.map(p=>[p.unidade, p.bomba]), []);
     }
