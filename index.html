@@ -1335,7 +1335,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-05-v97";
+const APP_BUILD = "2026-11-05-v98";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3191,8 +3191,11 @@ function pdfStyledTable(headers, rows, opts){
   const numCols = opts.numCols || [];
   return {
     table:{ headerRows:1, widths, body:[
-      headers.map(h=>({text:h, bold:true, color:'#fff', fontSize:8.5})),
-      ...rows.map(r=> r.map((c,i)=> ({ text:String(c), fontSize:9, alignment: numCols.includes(i) ? 'right':'left' })))
+      // cabeçalho das colunas numéricas centralizado igual ao valor (antes o título ficava à
+      // esquerda e o número à direita — o número "flutuava" sem nada embaixo dele no cabeçalho,
+      // parecendo um espaço vazio à esquerda da coluna)
+      headers.map((h,i)=>({text:h, bold:true, color:'#fff', fontSize:8.5, alignment: numCols.includes(i) ? 'center':'left'})),
+      ...rows.map(r=> r.map((c,i)=> ({ text:String(c), fontSize:9, alignment: numCols.includes(i) ? 'center':'left' })))
     ] },
     layout:{ fillColor:(i)=> i===0 ? PDFC.INK : (i%2===0 ? '#f7f7f7' : null),
       hLineWidth:()=>0.5, vLineWidth:()=>0, hLineColor:()=>PDFC.BORDER,
