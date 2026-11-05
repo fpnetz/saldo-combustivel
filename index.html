@@ -1335,7 +1335,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-04-v94";
+const APP_BUILD = "2026-11-05-v95";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3181,10 +3181,10 @@ function pdfKpiRow(items){ // items: [label, value, color]
     })) ] },
     layout:{ hLineWidth:()=>0, vLineWidth:()=>0, paddingLeft:()=>0, paddingRight:()=>0, paddingTop:()=>0, paddingBottom:()=>0,
       fillColor:(i,node,j)=> items[j] && items[j][2] ? pdfTint(items[j][2], 0.88) : '#f4f6f5' },
-    margin:[0,10,0,10],
+    margin:[0,8,0,8],
   };
 }
-function pdfH2(text){ return { text, fontSize:12, bold:true, color:PDFC.INK, margin:[0,14,0,6] }; }
+function pdfH2(text){ return { text, fontSize:12, bold:true, color:PDFC.INK, margin:[0,10,0,4] }; }
 function pdfStyledTable(headers, rows, opts){
   opts = opts || {};
   const widths = opts.widths || headers.map(()=> '*');
@@ -3197,7 +3197,7 @@ function pdfStyledTable(headers, rows, opts){
     layout:{ fillColor:(i)=> i===0 ? PDFC.INK : (i%2===0 ? '#f7f7f7' : null),
       hLineWidth:()=>0.5, vLineWidth:()=>0, hLineColor:()=>PDFC.BORDER,
       paddingLeft:()=>6, paddingRight:()=>6, paddingTop:()=>4, paddingBottom:()=>4 },
-    margin:[0,0,0,10],
+    margin:[0,0,0,6],
   };
 }
 function pdfDoc(content, orientation){
