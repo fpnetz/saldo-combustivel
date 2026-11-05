@@ -1341,7 +1341,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-05-v100";
+const APP_BUILD = "2026-11-05-v101";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -3149,9 +3149,17 @@ const STATUS_LABEL = {ok:"Conciliado", warn:"Fora do limite", bad:"Divergente", 
 // terminologia de saldo (Abastecimento x Suprimento x físico) e não faz sentido aqui, onde
 // o que se mede é o quanto a bomba desvia da litragem padrão no aferidor
 const STATUS_LABEL_BOMBA = {ok:"Dentro da margem", warn:"Fora da margem", bad:"Divergente"};
+// célula de status pra tabela de relatório: antes a coluna "Status" ia como texto corrido preto,
+// igual a qualquer outra coluna — sem nenhuma cor ou destaque, flutuando sozinho numa célula larga
+// e parecendo deslocado/largado perto das outras colunas. Isso marca a célula como "status" pra
+// sair como selo colorido (igual ao badge que já existe nas telas de consulta/aferição) tanto no
+// preview HTML quanto no PDF, em vez de texto solto.
+function celulaStatus(texto, tom){ return { __status: tom, texto }; }
 
 /* ---- PDF (pdfmake) — paleta, helpers e download ---- */
 const PDFC = { TEAL:'#0e7c86', TEAL_DARK:'#0a5a62', INK:'#1a1a1a', GRAY:'#666666', LIGHT:'#f2f2f2', BORDER:'#dddddd', GREEN:'#1a7a4c', AMBER:'#9a6a0d', RED:'#a9342c', BLUE:'#1B57B7' };
+// mesmas cores do selo colorido do HTML (.rpt-badge ok/warn/bad), pra célula de status no PDF
+const PDF_STATUS_COR = { ok: PDFC.GREEN, warn: PDFC.AMBER, bad: PDFC.RED };
 // mistura uma cor hex com branco (factor 0 = cor pura, 1 = branco) — usada para fundos claros
 // (cartões de KPI, destaques) em vez de hex com canal alfa ("#rrggbbaa"), que o layout de
 // tabela do pdfmake não interpreta direito e cai num laranja/amarelo de fallback (bug real
@@ -3206,7 +3214,14 @@ function pdfStyledTable(headers, rows, opts){
       // esquerda e o número à direita — o número "flutuava" sem nada embaixo dele no cabeçalho,
       // parecendo um espaço vazio à esquerda da coluna)
       headers.map((h,i)=>({text:h, bold:true, color:'#fff', fontSize:8.5, alignment: numCols.includes(i) ? 'center':'left'})),
-      ...rows.map(r=> r.map((c,i)=> ({ text:String(c), fontSize:9, alignment: numCols.includes(i) ? 'center':'left' })))
+      // célula de status (criada por celulaStatus) sai em negrito e na cor do selo, em vez de
+      // texto preto corrido igual às demais colunas — mesma ideia do selo colorido no HTML
+      ...rows.map(r=> r.map((c,i)=> {
+        const isStatus = c && typeof c==="object" && c.__status;
+        const cel = { text: isStatus ? c.texto : String(c==null?"":c), fontSize:9, alignment: numCols.includes(i) ? 'center':'left' };
+        if(isStatus){ cel.bold = true; cel.color = PDF_STATUS_COR[c.__status] || PDFC.INK; }
+        return cel;
+      }))
     ] },
     layout:{ fillColor:(i)=> i===0 ? PDFC.INK : (i%2===0 ? '#f7f7f7' : null),
       hLineWidth:()=>0.5, vLineWidth:()=>0, hLineColor:()=>PDFC.BORDER,
@@ -3913,7 +3928,7 @@ function modeloAfericaoBomba(){
       pulls.length,
       pullsTxt,
       fmtMl(a.diferencaMedia),
-      STATUS_LABEL_BOMBA[st]||st,
+      celulaStatus(STATUS_LABEL_BOMBA[st]||st, st),
     ];
   });
   modeloTabela(m, null,
@@ -3942,7 +3957,12 @@ function modeloParaHtml(m){
     // natural do conteúdo (números e datas numa linha só, sem espremer) e só a última coluna
     // (texto livre/Observação) tem um teto de largura — quando não cabe tudo, a tabela
     // rola na horizontal (.rpt-table-wrap) em vez de espremer tudo pra caber no card
-    const linhas = b.linhas.map(cells=>`<tr>${cells.map((c,i)=>`<td${b.numCols.includes(i)?' class="num"':''}>${c}</td>`).join("")}</tr>`).join("");
+    // célula de status (criada por celulaStatus) vira um selo colorido em vez de texto corrido —
+    // mesma lógica de cor do .afericao-pill já usado nas telas de consulta/aferição
+    const conteudoCelula = c=> (c && typeof c==="object" && c.__status)
+      ? `<span class="rpt-badge ${c.__status}">${escapeHtml(c.texto)}</span>`
+      : escapeHtml(String(c==null?"":c));
+    const linhas = b.linhas.map(cells=>`<tr>${cells.map((c,i)=>`<td${b.numCols.includes(i)?' class="num"':''}>${conteudoCelula(c)}</td>`).join("")}</tr>`).join("");
     return `${b.titulo?`<h4 class="rpt-subhead">${b.titulo}</h4>`:""}<div class="rpt-table-wrap"><table class="rpt-table"><thead><tr>${b.headers.map((h,i)=>`<th${b.numCols.includes(i)?' class="num"':''}>${h}</th>`).join("")}</tr></thead><tbody>${linhas}</tbody></table></div>`;
   }).join("");
   const marca = m.marca || marcaPadrao();
