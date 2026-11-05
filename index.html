@@ -1341,7 +1341,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-05-v99";
+const APP_BUILD = "2026-11-05-v100";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1518,6 +1518,11 @@ async function saveUnidade(u){
 // desta funcionalidade, continuam funcionando normalmente)
 function unidadeAtiva(u){ return !!u && u.ativo!==false; }
 function tanqueAtivo(t){ return !!t && t.ativo!==false; }
+// nome da unidade pra usar em relatórios — muitos relatórios cruzam dados históricos (ex.:
+// aferições, lançamentos antigos) que podem citar uma unidade já desativada depois; sem
+// marcar isso, o nome aparece igual ao de uma unidade ativa e quem lê o relatório não tem
+// como saber que aquele registro é de uma unidade que não existe mais operacionalmente.
+function nomeUnidadeRpt(u){ return u ? (u.nome + (unidadeAtiva(u) ? "" : " (desativada)")) : "—"; }
 async function toggleAtivoUnidade(id){
   if(!requireAdmin()) return;
   const u = unidades.find(x=>x.id===id); if(!u) return;
@@ -3609,7 +3614,7 @@ function modeloConciliacao(){
   const linhas = grupos.map(g=>{
     const diffTxt = g.cls.diffFis===undefined ? "—" : (g.cls.diffFis>=0?"+":"")+fmtNum.format(g.cls.diffFis)+" l"+(g.cls.pct!==undefined?` (${fmtPct.format(g.cls.pct)}%)`:"");
     const motivacoes = g.lancDoDia.map(l=>l.obs).filter(Boolean).join(" · ");
-    return [g.u.nome, g.produto, g.tanques.map(t=>t.numero).join(", "), fmtDate(g.data),
+    return [nomeUnidadeRpt(g.u), g.produto, g.tanques.map(t=>t.numero).join(", "), fmtDate(g.data),
       g.entradaTotal?fmtL(g.entradaTotal):"—", g.saidaTotal?fmtL(g.saidaTotal):"—",
       fmtL(g.saldoAb), fmtL(g.saldoSup), g.fisicoCompleto?fmtL(g.saldoFisico):"Aguardando",
       diffTxt, STATUS_LABEL[g.cls.status]||g.cls.status, motivacoes||"—"];
@@ -3635,7 +3640,7 @@ function modeloDivergencias(){
       ? (Math.abs(g.diffAbSup)>=0.01 ? `${g.diffAbSup>=0?"+":""}${fmtNum.format(g.diffAbSup)} l (sist. × sist.)` : "—")
       : (g.cls.diffFis>=0?"+":"")+fmtNum.format(g.cls.diffFis)+" l"+(g.cls.pct!==undefined?` (${fmtPct.format(g.cls.pct)}%)`:"");
     const motivacoes = g.lancDoDia.map(l=>l.obs).filter(Boolean).join(" · ");
-    return [g.u.nome, g.produto, fmtDate(g.data), STATUS_LABEL[g.cls.status]||g.cls.status, diffTxt, motivacoes||"Sem justificativa registrada"];
+    return [nomeUnidadeRpt(g.u), g.produto, fmtDate(g.data), STATUS_LABEL[g.cls.status]||g.cls.status, diffTxt, motivacoes||"Sem justificativa registrada"];
   });
   modeloTabela(m, null, ["Unidade","Produto","Data","Status","Diferença","Observação / motivação"], linhas, [4]);
   return m;
@@ -3656,7 +3661,7 @@ function modeloExecutivo(){
     const saidaPeriodo = gs.reduce((s,g)=>s+g.saidaTotal,0);
     const entradaPeriodo = gs.reduce((s,g)=>s+g.entradaTotal,0);
     const tanquesOc = u.tanques.map(t=>({t, oc: ocupacao(t.capacidade, saldoAtualTanque(t))}));
-    modeloTabela(m, `${u.nome} · ${u.estado}`,
+    modeloTabela(m, `${nomeUnidadeRpt(u)} · ${u.estado}`,
       ["Lançamentos","Conciliados","Fora do limite","Divergentes","Última atualização","Entrada período","Saída período"],
       [[total, `${counts.ok} (${pct(counts.ok)})`, `${counts.warn} (${pct(counts.warn)})`, `${counts.bad} (${pct(counts.bad)})`, ultimaData?fmtDate(ultimaData):"—", fmtL(entradaPeriodo), fmtL(saidaPeriodo)]],
       [0,1,2,3,5,6]);
@@ -3675,7 +3680,7 @@ function modeloConsumo(){
     const saida = r.itens.reduce((s,g)=>s+g.saidaTotal,0);
     const dias = new Set(r.itens.map(g=>g.data)).size;
     const mediaDia = dias ? saida/dias : 0;
-    return [r.u.nome, r.produto, fmtL(saida), dias, fmtL(mediaDia)];
+    return [nomeUnidadeRpt(r.u), r.produto, fmtL(saida), dias, fmtL(mediaDia)];
   });
   modeloTabela(m, null, ["Unidade","Produto","Consumo total (saída)","Dias com lançamento","Consumo médio/dia"], linhas, [2,3,4]);
   return m;
@@ -3688,7 +3693,7 @@ function modeloEntradas(){
     const comEntrada = r.itens.filter(g=>g.entradaTotal>0);
     const entrada = comEntrada.reduce((s,g)=>s+g.entradaTotal,0);
     const ultima = comEntrada.length ? comEntrada.reduce((m2,g)=>g.data>m2?g.data:m2, comEntrada[0].data) : null;
-    return [r.u.nome, r.produto, fmtL(entrada), comEntrada.length, ultima?fmtDate(ultima):"—"];
+    return [nomeUnidadeRpt(r.u), r.produto, fmtL(entrada), comEntrada.length, ultima?fmtDate(ultima):"—"];
   });
   modeloTabela(m, null, ["Unidade","Produto","Entrada total","Nº de abastecimentos","Última entrada"], linhas, [2,3]);
   return m;
@@ -3709,7 +3714,7 @@ function modeloMedia(){
       }
       mediaIntervalo = n ? somaDias/n : null;
     }
-    return [r.u.nome, r.produto, comEntrada.length, comEntrada.length?fmtL(mediaVolume):"—", mediaIntervalo!==null?fmtNum.format(mediaIntervalo)+" dia(s)":"—"];
+    return [nomeUnidadeRpt(r.u), r.produto, comEntrada.length, comEntrada.length?fmtL(mediaVolume):"—", mediaIntervalo!==null?fmtNum.format(mediaIntervalo)+" dia(s)":"—"];
   });
   modeloTabela(m, null, ["Unidade","Produto","Nº de abastecimentos","Volume médio/abastecimento","Intervalo médio entre abastecimentos"], linhas, [2,3,4]);
   return m;
@@ -3724,7 +3729,7 @@ function modeloSaldoAtual(){
       const saldo = saldoAtualTanque(t);
       const oc = ocupacao(t.capacidade, saldo);
       somaSaldo += saldo; qtdTanques++;
-      linhas.push([u.nome, t.numero, t.produto, fmtL(t.capacidade), fmtL(saldo), oc?fmtPct.format(oc.pct)+"%":"—"]);
+      linhas.push([nomeUnidadeRpt(u), t.numero, t.produto, fmtL(t.capacidade), fmtL(saldo), oc?fmtPct.format(oc.pct)+"%":"—"]);
     });
   });
   if(!linhas.length){ modeloTexto(m, "Nenhum tanque para exibir."); return m; }
@@ -3740,7 +3745,7 @@ function modeloPendencias(){
   const grupos = gruposFiltradosRelatorio().filter(g=>g.cls.status==="pend");
   if(grupos.length){
     modeloTabela(m, "Aguardando leitura física", ["Unidade","Produto","Data","Tanque(s)"],
-      grupos.map(g=>[g.u.nome, g.produto, fmtDate(g.data), g.tanques.map(t=>t.numero).join(", ")]), []);
+      grupos.map(g=>[nomeUnidadeRpt(g.u), g.produto, fmtDate(g.data), g.tanques.map(t=>t.numero).join(", ")]), []);
   } else {
     modeloTexto(m, "Nenhum lançamento aguardando leitura física no período.");
   }
@@ -3763,7 +3768,7 @@ function modeloPendencias(){
   if(agAtrasadas.length){
     modeloTabela(m, "Aferições agendadas em atraso ou para hoje", ["Unidade","Tanque","Data agendada","Observação"],
       agAtrasadas.map(a=>{ const u=unidades.find(x=>x.id===a.unidadeId); const t=u?u.tanques.find(x=>x.id===a.tanqueId):null;
-        return [u?u.nome:"—", t?t.numero:"?", fmtDate(a.data), a.obs||"—"]; }), []);
+        return [u?nomeUnidadeRpt(u):"—", t?t.numero:"?", fmtDate(a.data), a.obs||"—"]; }), []);
   }
   m.kpis = [
     {label:"Aguardando físico", valor:grupos.length, cor:PDFC.GRAY},
@@ -3807,7 +3812,7 @@ function modeloComparativo(){
     const anterior = totalPeriodo(u.id, deAnt, ateAnt);
     const variacao = anterior ? ((atual-anterior)/anterior*100) : (atual?100:0);
     const sinal = variacao>=0?"+":"";
-    return [u.nome, fmtL(atual), fmtL(anterior), `${sinal}${fmtNum.format(variacao)}%`];
+    return [nomeUnidadeRpt(u), fmtL(atual), fmtL(anterior), `${sinal}${fmtNum.format(variacao)}%`];
   });
   modeloTabela(m, `Saída (consumo) — período atual × ${fmtDate(deAnt)} a ${fmtDate(ateAnt)}`,
     ["Unidade","Período atual","Período anterior","Variação"], linhas, [1,2,3]);
@@ -3898,7 +3903,7 @@ function modeloAfericaoBomba(){
     const pullsTxt = pulls.map(p=>(p.diferenca>=0?"+":"")+fmtNum.format(p.diferenca*1000)).join(", ")+" ml";
     const st = classificarBomba(a.diferencaMedia);
     return [
-      u?u.nome:"—",
+      u?nomeUnidadeRpt(u):"—",
       // sem o prefixo "Bomba " aqui — o cabeçalho da coluna já diz "Bomba", e o nome real
       // (ex.: "AJU - DIESEL S10") já é longo o bastante sem repetir a palavra
       b?b.numero:"—",
