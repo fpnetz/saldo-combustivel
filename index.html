@@ -439,6 +439,16 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
   cursor:pointer;text-align:left;font:inherit;color:inherit;display:block;width:100%;
   border-left:4px solid var(--line);
 }
+.pano-card.sel{box-shadow:0 0 0 2px var(--teal-ink) inset}
+/* painel que abre embaixo da grade ao clicar numa unidade — fica no próprio Panorama em vez
+   de pular pra Consulta, pra ver os tanques/tendência sem perder o contexto do mapa/gráficos */
+.pan-detalhe{animation:fadeIn .15s ease}
+.pan-detalhe-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.pan-detalhe-actions{display:flex;gap:8px;flex-shrink:0}
+.pan-detalhe-tanques{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.pan-detalhe-tanque{border:1px solid var(--line);border-radius:10px;padding:12px}
+.pan-detalhe-tanque-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.pan-detalhe-sub{font-size:11.5px;color:var(--muted);margin-top:6px}
 .pano-card.ok{border-left-color:var(--ok)}
 .pano-card.warn{border-left-color:var(--warn)}
 .pano-card.bad{border-left-color:var(--bad)}
@@ -914,6 +924,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       </div>
       <div id="panFiltroChip"></div>
       <div class="pano-grid" id="panoGrid"></div>
+      <div id="panUnidadeDetalhe"></div>
     </section>
 
     <!-- -------- DASHBOARD -------- -->
@@ -1341,7 +1352,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-05-v102";
+const APP_BUILD = "2026-11-09-v103";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -2431,6 +2442,7 @@ function unidadeSummary(u, grupos){
 /* ---- Panorama: mapa do Brasil + gráficos ---- */
 const UF_NOME_BR = Object.fromEntries(BR_MAP.map(s=>[s.i, s.n]));
 let panoUFFiltro = null;
+let panoUnidadeSelecionada = null; // id da unidade com o painel de detalhe aberto no Panorama
 const PANO_STATUS_LABEL = {ok:"Conciliado", warn:"Fora do limite", bad:"Divergente", pend:"Aguardando físico", af:"Aferição", sem:"Sem lançamento"};
 const PANO_STATUS_VARCOLOR = {ok:"var(--ok)", warn:"var(--warn)", bad:"var(--bad)", pend:"var(--pend)", af:"var(--teal)", sem:"var(--line)"};
 function ufAgregado(summaries){
@@ -2722,7 +2734,8 @@ function renderPanorama(){
     if(s.counts.bad) miniParts.push(`<span><span class="dot bad"></span>${s.counts.bad} divergente</span>`);
     if(s.counts.pend) miniParts.push(`<span><span class="dot pend"></span>${s.counts.pend} aguardando</span>`);
     if(s.counts.sem) miniParts.push(`<span>${s.counts.sem} sem lançamento</span>`);
-    return `<button type="button" class="pano-card ${statusClass}" data-u="${s.u.id}">
+    const selClass = panoUnidadeSelecionada===s.u.id ? " sel" : "";
+    return `<button type="button" class="pano-card ${statusClass}${selClass}" data-u="${s.u.id}">
       <div class="pano-head">
         <div><h3>${s.u.nome}</h3><div class="muted">${s.u.estado} · ${s.u.tanques.length} tanque(s)</div></div>
         ${s.status ? `<span class="badge ${s.status}"><span class="dot ${s.status}"></span>${statusLabel}</span>` : `<span class="badge pend">Sem lançamento</span>`}
@@ -2736,12 +2749,57 @@ function renderPanorama(){
     </button>`;
   }).join("");
   grid.querySelectorAll(".pano-card").forEach(card=>{
+    // clicar na unidade abre o detalhe dela aqui mesmo no Panorama (tanques, ocupação,
+    // tendência da diferença e aferição) em vez de pular pra Consulta — "Abrir na Consulta"
+    // dentro do painel continua disponível pra quem quiser ver os lançamentos linha a linha
     card.addEventListener("click",()=>{
-      setView("dashboard");
-      const sel = document.getElementById("fUnidade");
-      if(!sel.disabled) sel.value = card.dataset.u;
-      renderTable();
+      panoUnidadeSelecionada = panoUnidadeSelecionada===card.dataset.u ? null : card.dataset.u;
+      renderPanorama();
+      if(panoUnidadeSelecionada){
+        document.getElementById("panUnidadeDetalhe").scrollIntoView({behavior:"smooth", block:"nearest"});
+      }
     });
+  });
+  renderPanUnidadeDetalhe(summariesTodas);
+}
+function renderPanUnidadeDetalhe(summariesTodas){
+  const el = document.getElementById("panUnidadeDetalhe");
+  if(!el) return;
+  if(!panoUnidadeSelecionada){ el.innerHTML = ""; return; }
+  const s = summariesTodas.find(x=>x.u.id===panoUnidadeSelecionada);
+  if(!s){ panoUnidadeSelecionada = null; el.innerHTML = ""; return; }
+  const u = s.u;
+  const tanquesHtml = s.tanques.map(x=>{
+    const trend = diffTrendSvg(x.t);
+    return `<div class="pan-detalhe-tanque">
+      <div class="pan-detalhe-tanque-head">
+        <div><b>Tanque ${x.t.numero}</b> <span class="muted">· ${x.t.produto}</span></div>
+        ${badgeHtml({status:x.af.status})}
+      </div>
+      ${occBarHtml(x.oc)}
+      <div class="pan-detalhe-sub">Próxima aferição: ${afericaoTxt(x.af)}</div>
+      ${trend || `<div class="pan-detalhe-sub">Sem leituras suficientes pra mostrar tendência.</div>`}
+    </div>`;
+  }).join("");
+  el.innerHTML = `<div class="pan-card pan-wide pan-detalhe">
+    <div class="pan-detalhe-head">
+      <div>
+        <h3>${u.nome}</h3>
+        <div class="muted">${u.estado} · ${u.tanques.length} tanque(s) · última atualização: ${s.ultimaData?fmtDate(s.ultimaData):"—"}</div>
+      </div>
+      <div class="pan-detalhe-actions">
+        <button type="button" class="btn btn-ghost" id="panDetalheConsulta">Abrir na Consulta</button>
+        <button type="button" class="btn btn-ghost" id="panDetalheFechar">Fechar</button>
+      </div>
+    </div>
+    <div class="pan-detalhe-tanques">${tanquesHtml}</div>
+  </div>`;
+  document.getElementById("panDetalheFechar").addEventListener("click", ()=>{ panoUnidadeSelecionada=null; renderPanorama(); });
+  document.getElementById("panDetalheConsulta").addEventListener("click", ()=>{
+    setView("dashboard");
+    const sel = document.getElementById("fUnidade");
+    if(!sel.disabled) sel.value = u.id;
+    renderTable();
   });
 }
 
