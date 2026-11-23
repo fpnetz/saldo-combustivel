@@ -1361,7 +1361,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-09-v104";
+const APP_BUILD = "2026-11-23-v105";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -1978,7 +1978,7 @@ function occColsHtml(tanques){
     return occBarHtml(x.oc, "small", `Tanque ${x.t.numero} · ${x.t.produto}`);
   }).join("")}</div>`;
 }
-function classificar(diffAbSup, saldoFisico, saldoAb){
+function classificar(diffAbSup, saldoFisico, saldoAb, capacidade){
   // "Divergente" só é usado quando dá pra PROVAR o problema contra uma leitura física real.
   // Sem saldo físico ainda, fica "Aguardando físico" — mesmo que Abastecimento x Suprimento
   // não batam entre si (isso sozinho não prova nada: pode ser só suprimento daquele dia
@@ -1987,7 +1987,12 @@ function classificar(diffAbSup, saldoFisico, saldoAb){
     return {status:"pend", label:"Aguardando físico"};
   }
   const diffFis = saldoAb - saldoFisico;
-  const pct = saldoFisico!==0 ? Math.abs(diffFis)/Math.abs(saldoFisico)*100 : (diffFis===0?0:100);
+  // % sobre a CAPACIDADE do tanque (grupo), não sobre o saldo físico da leitura — se fosse sobre
+  // o saldo físico, os mesmos litros de diferença dariam um % bem maior num tanque quase vazio
+  // do que num tanque cheio, fazendo o status "pular" de Fora do limite pra Divergente sem
+  // nenhuma mudança real na gravidade do desvio. Sem capacidade cadastrada, cai no pior caso
+  // (100%) pra não mascarar uma diferença real como conciliada por falta de dado.
+  const pct = capacidade ? Math.abs(diffFis)/capacidade*100 : (diffFis===0?0:100);
   if(pct <= MARGEM.ok) return {status:"ok", label:"Conciliado", pct, diffFis};
   if(pct <= MARGEM.warn) return {status:"warn", label:"Fora do limite", pct, diffFis};
   return {status:"bad", label:"Divergente", pct, diffFis};
@@ -2035,8 +2040,8 @@ function gruposDoDia(){
     // pra entrar na conciliação de saldo (Conciliado/Fora do limite/Divergente/Aguardando) —
     // fica com status próprio "Aferição", fora dessas contagens.
     const soAfericao = lancDoDia.length>0 && lancDoDia.every(isLancAfericaoPura);
-    const cls = soAfericao ? {status:"af", label:"Aferição"} : classificar(diffAbSup, saldoFisico, saldoAb);
     const capacidadeTotal = tanques.reduce((s,t)=>s+(t.capacidade||0),0);
+    const cls = soAfericao ? {status:"af", label:"Aferição"} : classificar(diffAbSup, saldoFisico, saldoAb, capacidadeTotal);
     const oc = ocupacao(capacidadeTotal, fisicoCompleto ? saldoFisico : saldoAb);
     // movimento do dia: quanto ENTROU e quanto SAIU (abastecido nos veículos) naquele grupo
     const entradaTotal = lancDoDia.reduce((s,l)=>s+(l.abEntrada||0),0);
@@ -2971,7 +2976,8 @@ function afericoesDoMes(unidadeId, mes){
       if(!l.data.startsWith(mes)) return;
       const saldoAb = saldoAbastecimentoAte(t, l.data);
       const diff = saldoAb - l.saldoFisico;
-      const pct = l.saldoFisico!==0 ? Math.abs(diff)/Math.abs(l.saldoFisico)*100 : (diff===0?0:100);
+      // mesma base de classificar(): % sobre a capacidade do tanque, não sobre o saldo físico
+      const pct = t.capacidade ? Math.abs(diff)/t.capacidade*100 : (diff===0?0:100);
       let status = "ok";
       if(pct > MARGEM.warn) status = "bad";
       else if(pct > MARGEM.ok) status = "warn";
@@ -4466,7 +4472,8 @@ function openIncluirSaldo(prefillTanqueId, prefillData, editLancamento){
     const saldoSupAtual = supSaldoManual!==null ? supSaldoManual : saldoSupAnterior + supE - supS;
     const somaOutros = tanquesDoGrupo(u.id,t.id).filter(x=>x.id!==t.id).reduce((s,x)=>s+saldoAbastecimentoAte(x,data),0);
     const diffAbSup = saldoSupAtual - (saldoAbNovo + somaOutros);
-    const cls = classificar(diffAbSup, fisico, saldoAbNovo);
+    const capacidadeGrupo = tanquesDoGrupo(u.id,t.id).reduce((s,x)=>s+(x.capacidade||0),0);
+    const cls = classificar(diffAbSup, fisico, saldoAbNovo, capacidadeGrupo);
 
     const titles = {
       ok:"Este lançamento ficará Conciliado",
