@@ -742,6 +742,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 
 /* ---------- Link público de aferição ---------- */
 #afPublico{position:fixed;inset:0;background:var(--bg);z-index:50;overflow:auto}
+#lancPublico{position:fixed;inset:0;background:var(--bg);z-index:50;overflow:auto}
 .af-pub-wrap{max-width:640px;margin:0 auto;padding:28px 16px 60px}
 .af-pub-card{background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:24px 22px;margin-bottom:16px;font-family:"IBM Plex Sans",system-ui,sans-serif}
 .af-pub-card .field{margin-bottom:12px}
@@ -1376,7 +1377,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-24-v108";
+const APP_BUILD = "2026-11-24-v109";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
