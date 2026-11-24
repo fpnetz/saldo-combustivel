@@ -1398,7 +1398,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-24-v117";
+const APP_BUILD = "2026-11-24-v118";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -6316,24 +6316,6 @@ function renderPublicAfericao(){
     <div class="field"><label>Data da aferição</label><input id="afPubData" type="date" value="${dstr(new Date())}"></div>
   `;
 
-  const tanques = u.tanques.filter(tanqueAtivo);
-  if(tanques.length){
-    html += `<div class="section-label">Saldo físico por tanque</div>
-      <p class="hint" style="margin-top:-6px">Preencha o saldo físico e a foto da régua apenas dos tanques que você aferiu agora (ambos opcionais).</p>`;
-    tanques.forEach(t=>{
-      html += `
-      <div class="saldo-atual-box">
-        <div class="saldo-atual-title">Tanque ${escapeHtml(t.numero)} · ${escapeHtml(t.produto)}</div>
-        <div class="field"><label>Saldo físico (régua) — litros <span class="muted">(opcional)</span></label><input type="number" min="0" id="afPubFisico-${t.id}"></div>
-        <div class="upload-row">
-          <label class="upload-box" id="afPubFotoBox-${t.id}"><span class="upload-box-text">Foto da régua (opcional)</span><div class="upload-box-preview"></div><input type="file" id="afPubFoto-${t.id}" accept="image/*"></label>
-        </div>
-      </div>`;
-    });
-  } else {
-    html += `<p class="hint">Esta unidade ainda não tem tanque ativo cadastrado.</p>`;
-  }
-
   html += `
     <div class="section-label">Observação e anexos</div>
     <div class="field"><label>Observação <span class="muted">(opcional)</span></label><textarea id="afPubObs" rows="3" placeholder="Qualquer informação relevante sobre a aferição..."></textarea></div>
@@ -6378,10 +6360,6 @@ function renderPublicAfericao(){
     matriculaHint.hidden = !prepostoCb.checked;
   });
 
-  const fotosPorTanque = {};
-  tanques.forEach(t=>{
-    wireUploadBox(`afPubFotoBox-${t.id}`, `afPubFoto-${t.id}`, f=>{ fotosPorTanque[t.id] = f; });
-  });
   let anexoLivreFile = null;
   wireUploadBox("afPubAnexoBox", "afPubAnexo", f=>{ anexoLivreFile = f; });
 
@@ -6406,9 +6384,9 @@ function renderPublicAfericao(){
     if(!isPreposto && !matricula){ showToast("Informe a matrícula (ou marque que é preposto/terceirizado)."); return; }
     const data = document.getElementById("afPubData").value;
     if(!data){ showToast("Informe a data da aferição."); return; }
-    // saldo físico e foto da régua agora são opcionais por tanque — só processa os tanques
-    // em que o saldo físico foi preenchido; a foto não é mais exigida em nenhum caso
-    const tanquesPreenchidos = tanques.filter(t=>document.getElementById(`afPubFisico-${t.id}`).value!=="");
+    // saldo físico por tanque saiu do link de aferição — hoje quem registra o saldo físico
+    // de cada tanque é o link de lançamento (?lanc=1 / ?publico=1), que já exige esse campo
+    // em todos os tanques a cada envio. A aferição aqui ficou só com a calibração das bombas.
     const bombasParaSalvar = [];
     for(const b of bombas){
       const qtd = Math.max(0, Number(st.bombaQtd[b.id]||0));
@@ -6420,61 +6398,15 @@ function renderPublicAfericao(){
       }
       bombasParaSalvar.push({ b, diffs });
     }
-    if(!tanquesPreenchidos.length && !bombasParaSalvar.length){
-      showToast("Preencha o saldo físico de pelo menos um tanque ou a aferição de pelo menos uma bomba.");
+    if(!bombasParaSalvar.length){
+      showToast("Preencha a aferição de pelo menos uma bomba.");
       return;
     }
 
     const btn = document.getElementById("afPubEnviar");
     btn.disabled = true; btn.textContent = "Enviando...";
     try{
-      // busca o histórico de lançamentos só pra calcular a diferença (saldo calculado x físico)
-      // de cada tanque e sinalizar no comprovante quando passar de 2,5 l — não substitui o
-      // array global `lancamentos` (o link público mantém isso vazio de propósito).
-      let historicoLancamentos = [];
-      try{
-        const hRes = await dbNs.collection("lancamentos").get();
-        historicoLancamentos = hRes && hRes.docs ? hRes.docs.filter(d=>d.exists).map(d=>d.data()).filter(Boolean) : [];
-      }catch(e){ console.error("[saldo] falha ao buscar histórico para calcular diferença (link público):", e); }
-      const saldoCalculadoAte = (tanqueId, dataLimite, saldoInicial)=>{
-        let saldo = saldoInicial;
-        const ls = historicoLancamentos.filter(l=>l.tanqueId===tanqueId).sort((a,b)=>a.data<b.data?-1:1);
-        for(const l of ls){
-          if(l.data > dataLimite) break;
-          if(l.abSaldoManual!==null && l.abSaldoManual!==undefined && l.abSaldoManual!=="") saldo = Number(l.abSaldoManual);
-          else saldo += (l.abEntrada||0) - (l.abSaida||0);
-        }
-        return saldo;
-      };
-
       const tanquesComprovante = [];
-      for(const t of tanquesPreenchidos){
-        const fisico = Number(document.getElementById(`afPubFisico-${t.id}`).value);
-        let fotoAssetId = null;
-        if(assetsNs && fotosPorTanque[t.id]){
-          try{ const r = await assetsNs.upload(fotosPorTanque[t.id]); fotoAssetId = r.id; }
-          catch(e){ console.error("[saldo] falha ao enviar foto da régua (link público):", e); }
-        }
-        let existente = null;
-        try{
-          const edoc = await dbNs.doc("lancamentos/"+(t.id+"__"+data)).get();
-          if(edoc && edoc.exists) existente = edoc.data();
-        }catch(e){ /* segue sem mesclar */ }
-        const l = existente
-          ? { ...existente, saldoFisico: fisico, fotoAssetId: fotoAssetId || existente.fotoAssetId || null,
-              responsavelNome: nome, responsavelMatricula: isPreposto?null:matricula, responsavelPreposto: isPreposto }
-          : { id: t.id+"__"+data, unidadeId:u.id, tanqueId:t.id, produto:t.produto, data,
-              abEntrada:0, abSaida:0, saldoFisico:fisico,
-              printAssetId:null, fotoAssetId, obs:"Registrado via link de aferição.", exemplo:false,
-              responsavelNome: nome, responsavelMatricula: isPreposto?null:matricula, responsavelPreposto: isPreposto };
-        await saveLancamento(l);
-        historicoLancamentos = historicoLancamentos.filter(x=>x.id!==l.id).concat([l]); // inclui esta leitura no histórico usado no gráfico de tendência
-        const saldoCalc = saldoCalculadoAte(t.id, data, t.saldoInicial);
-        const diferenca = saldoCalc - fisico;
-        tanquesComprovante.push({
-          numero:t.numero, produto:t.produto, saldoFisico:fisico, fotoAssetId, diferenca, tanqueId:t.id,
-        });
-      }
 
       const bombasComprovante = [];
       for(const { b, diffs } of bombasParaSalvar){
@@ -6528,7 +6460,7 @@ function renderPublicAfericao(){
         catch(e){ console.error("[saldo] falha ao salvar comprovante:", e); }
       }
 
-      await gerarComprovantePdf(comprovante, u, historicoLancamentos);
+      await gerarComprovantePdf(comprovante, u, []);
       showToast("Aferição registrada com sucesso — comprovante gerado.");
       afPubState = { unidadeId:null, bombaQtd:{}, bombaDiffs:{},
         done: { unidadeNome:u.nome, nome, proximaVencimento:proxima.fim, proximaLabel:proxima.label } };
