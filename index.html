@@ -1397,7 +1397,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-24-v112";
+const APP_BUILD = "2026-11-24-v113";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -2133,6 +2133,13 @@ function grupoOrigemAfericao(g){
   return g.lancDoDia.length>0 && g.lancDoDia.every(isLancAfericaoPura);
 }
 function grupoResponsaveisAfericao(g){
+  return [...new Set(g.lancDoDia.map(l=>l.responsavelNome).filter(Boolean))].join(", ");
+}
+// mesma coisa, mas pra QUALQUER lançamento (não só aferição pura) — usado no painel de
+// detalhe pra mostrar quem lançou quando o registro veio do link público (lançamento normal
+// de saldo, não só leitura de aferição); nomes repetidos (dois tanques lançados pela mesma
+// pessoa no mesmo dia) aparecem uma vez só.
+function grupoResponsaveis(g){
   return [...new Set(g.lancDoDia.map(l=>l.responsavelNome).filter(Boolean))].join(", ");
 }
 
@@ -4684,7 +4691,8 @@ function blocosTanqueDetalhe(g, paraImpressao){
 function detalheCorpoHtml(g, temExemplo){
   const supDoDia = suprimentos.find(s=>s.unidadeId===g.u.id && s.grupoKey===g.grupoKey && s.data===g.data);
   const ehAfericao = grupoOrigemAfericao(g);
-  const responsaveis = ehAfericao ? grupoResponsaveisAfericao(g) : "";
+  const responsaveis = grupoResponsaveis(g);
+  const labelResponsavel = ehAfericao ? "Responsável pela aferição" : "Responsável pelo lançamento";
   return `<p class="hint">${fmtDate(g.data)} · Resumo do dia · ${g.tanques.length} tanque${g.tanques.length>1?"s":""} ${temExemplo?'· <span class="badge-example">exemplo</span>':""}</p>
           <div class="calc-preview">
             <div class="row"><span>Entrada (total)</span><b class="num">${fmtL(g.entradaTotal)}</b></div>
@@ -4694,7 +4702,7 @@ function detalheCorpoHtml(g, temExemplo){
             ${supDoDia?`<div class="row"><span>Entrada / Saída Suprimento neste dia</span><b class="num">${fmtL(supDoDia.supEntrada)} / ${fmtL(supDoDia.supSaida)}</b></div>`:""}
             <div class="row"><span>Saldo Físico (total)</span><b class="num">${g.fisicoCompleto?fmtL(g.saldoFisico):"Aguardando leitura em todos os tanques"}</b></div>
             <div class="row"><span>Status</span>${badgeHtml(g.cls)}</div>
-            ${responsaveis?`<div class="row"><span>Responsável pela aferição</span><b>${escapeHtml(responsaveis)}</b></div>`:""}
+            ${responsaveis?`<div class="row"><span>${labelResponsavel}</span><b>${escapeHtml(responsaveis)}</b></div>`:""}
           </div>
           <div class="section-label" style="margin-top:18px">Detalhe por tanque</div>`;
 }
