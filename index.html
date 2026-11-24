@@ -1377,7 +1377,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-24-v109";
+const APP_BUILD = "2026-11-24-v110";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -5817,7 +5817,7 @@ async function initPublicAfericao(){
    do link de aferição, aqui PRECISA carregar lancamentos/suprimentos de verdade (não
    fica vazio), porque o formulário mostra o saldo atual de referência e mescla com
    o que já foi lançado hoje (igual o modal "Incluir saldo" do admin faz). */
-let lancPubState = null; // { unidadeId, tanqueId, supEditado }
+let lancPubState = null; // { unidadeId, done? }
 async function initPublicLancamento(){
   document.getElementById("login").style.display = "none";
   document.getElementById("themeToggleLogin").hidden = true;
@@ -5846,7 +5846,7 @@ async function initPublicLancamento(){
   }
   agendamentos = []; afericoesBomba = [];
   session = { user:"link-publico", role:"publico", nome:"Link público de lançamento", unidadeId:null };
-  lancPubState = { unidadeId:null, tanqueId:null, supEditado:false };
+  lancPubState = { unidadeId:null };
   renderPublicLancamento();
 }
 function lancPubComboOptionsHtml(filtroTexto){
@@ -5863,7 +5863,6 @@ function wireLancPubCombo(){
     list.querySelectorAll("[data-pick-unidade]").forEach(btn=>{
       btn.addEventListener("click", ()=>{
         lancPubState.unidadeId = btn.dataset.pickUnidade;
-        lancPubState.tanqueId = null;
         list.hidden = true;
         renderPublicLancamento();
       });
@@ -5884,11 +5883,11 @@ function renderPublicLancamento(){
     body.innerHTML = `<div class="af-done">
         <div class="af-done-check">✓</div>
         <h2>Lançamento registrado!</h2>
-        <p class="hint">Obrigado, ${escapeHtml(st.done.nome)}. O lançamento de ${escapeHtml(st.done.unidadeNome)} já aparece na conciliação da unidade.</p>
+        <p class="hint">Obrigado, ${escapeHtml(st.done.nome)}. O lançamento d${st.done.qtd>1?"os "+st.done.qtd+" tanques":"o tanque"} de ${escapeHtml(st.done.unidadeNome)} já aparece na conciliação da unidade.</p>
         <button class="btn btn-primary" id="lancPubNova" type="button" style="width:100%;margin-top:18px">Lançar outro saldo</button>
       </div>`;
     document.getElementById("lancPubNova").addEventListener("click", ()=>{
-      lancPubState = { unidadeId:null, tanqueId:null, supEditado:false };
+      lancPubState = { unidadeId:null };
       renderPublicLancamento();
     });
     return;
@@ -5897,7 +5896,7 @@ function renderPublicLancamento(){
   const u = st.unidadeId ? unidades.find(x=>x.id===st.unidadeId) : null;
   if(!u){
     body.innerHTML = `
-      <p class="hint" style="margin-top:0">Escolha a unidade para lançar o saldo do dia completo: Abastecimento, Suprimento e Saldo físico da régua.</p>
+      <p class="hint" style="margin-top:0">Escolha a unidade para lançar o saldo do dia completo de todos os tanques: Abastecimento, Suprimento e Saldo físico da régua.</p>
       <div class="field" style="position:relative">
         <label for="lancPubUnidadeInput">Unidade</label>
         <input id="lancPubUnidadeInput" type="text" autocomplete="off" placeholder="Selecione a unidade">
@@ -5907,7 +5906,15 @@ function renderPublicLancamento(){
     return;
   }
 
-  // preserva o que a pessoa já digitou (nome/matrícula/observação) ao trocar tanque ou data,
+  const tanquesVisiveis = u.tanques.filter(tanqueAtivo);
+  if(!tanquesVisiveis.length){
+    body.innerHTML = `<p class="hint" style="margin-top:0"><b>${escapeHtml(u.nome)}</b> ainda não tem tanque ativo cadastrado.</p>
+      <button class="btn btn-ghost" id="lancPubTrocarUnidade" type="button" style="width:100%">Trocar unidade</button>`;
+    document.getElementById("lancPubTrocarUnidade").addEventListener("click", ()=>{ lancPubState = { unidadeId:null }; renderPublicLancamento(); });
+    return;
+  }
+
+  // preserva o que a pessoa já digitou (nome/matrícula/observação) ao trocar a data,
   // já que isso reconstrói o formulário inteiro — senão um "troquei a data" apagava o nome
   // que ela já tinha preenchido, obrigando a redigitar tudo de novo
   const preservado = {
@@ -5917,78 +5924,76 @@ function renderPublicLancamento(){
     obs: document.getElementById("lancPubObs")?.value || "",
   };
 
-  const tanquesVisiveis = u.tanques.filter(tanqueAtivo);
-  if(!st.tanqueId || !tanquesVisiveis.some(t=>t.id===st.tanqueId)) st.tanqueId = tanquesVisiveis[0] ? tanquesVisiveis[0].id : null;
-  const t = tanquesVisiveis.find(x=>x.id===st.tanqueId);
-
-  if(!t){
-    body.innerHTML = `<p class="hint" style="margin-top:0"><b>${escapeHtml(u.nome)}</b> ainda não tem tanque ativo cadastrado.</p>
-      <button class="btn btn-ghost" id="lancPubTrocarUnidade" type="button" style="width:100%">Trocar unidade</button>`;
-    document.getElementById("lancPubTrocarUnidade").addEventListener("click", ()=>{ lancPubState.unidadeId = null; renderPublicLancamento(); });
-    return;
-  }
-
   const data = document.getElementById("lancPubData")?.value || dstr(new Date());
-  const grupoIds = grupoSuprimento(u, t.id);
-  const irmaos = tanquesDoGrupoSuprimento(u.id, t.id).filter(x=>x.id!==t.id);
-  const saldoAbAtual = saldoAbastecimentoAte(t, prevDate(data));
-  const saldoSupAtual = saldoSuprimentoAteGrupo(u.id, grupoIds, prevDate(data));
-  const fisicoAtual = fisicoConhecidoAte(t, prevDate(data));
+
+  // agrupa os tanques ATIVOS da unidade por GRUPO DE SUPRIMENTO (mesmo produto — ver
+  // grupoSuprimento()), não por bomba: é por aí que o Suprimento é lançado uma vez só.
+  const grupos = [];
+  tanquesVisiveis.forEach(t=>{
+    const ids = grupoSuprimento(u, t.id).filter(id=>tanquesVisiveis.some(x=>x.id===id));
+    const key = grupoKeyDe(ids);
+    let g = grupos.find(g=>g.key===key);
+    if(!g){ g = { key, produto:t.produto, ids, tanques:[] }; grupos.push(g); }
+    g.tanques.push(t);
+  });
 
   body.innerHTML = `
-    <div class="grid2">
-      <div class="field"><label>Unidade</label><input value="${escapeHtml(u.nome)}" readonly></div>
-      <div class="field"><label>Tanque</label><select id="lancPubTanque">${tanquesVisiveis.map(x=>`<option value="${x.id}" ${x.id===t.id?"selected":""}>Tanque ${x.numero} — ${x.produto}</option>`).join("")}</select></div>
-    </div>
+    <div class="field"><label>Unidade</label><input value="${escapeHtml(u.nome)}" readonly></div>
     <button class="btn btn-ghost" id="lancPubTrocarUnidade" type="button" style="margin:-4px 0 14px">Trocar unidade</button>
-    ${irmaos.length ? `<div class="banner-bomba">⛽ <b>Mesmo produto de ${irmaos.map(x=>"Tanque "+x.numero).join(", ")}</b> — o Suprimento abaixo soma todos os tanques desse produto, não só este tanque.</div>` : ""}
-
-    <div class="saldo-atual-box">
-      <div class="saldo-atual-title">Saldo atual deste tanque (antes deste lançamento)</div>
-      <div class="saldo-atual-grid">
-        <div><span>Abastecimento</span><b>${fmtL(saldoAbAtual)}</b></div>
-        <div><span>Suprimento (grupo)</span><b>${fmtL(saldoSupAtual)}</b></div>
-        <div><span>Último físico</span><b>${fmtL(fisicoAtual)}</b></div>
-      </div>
-    </div>
+    <p class="hint" style="margin:-6px 0 14px">Lance o saldo de <b>todos os tanques</b> da unidade de uma vez — um envio só.</p>
 
     <div class="field"><label>Nome completo</label><input id="lancPubNome" placeholder="ex: João da Silva Santos"></div>
     <label class="checkbox-row"><input type="checkbox" id="lancPubPreposto"> Sou preposto / terceirizado</label>
     <div class="field" id="lancPubMatriculaWrap"><label>Matrícula</label><input id="lancPubMatricula" placeholder="ex: 00412"></div>
     <p class="hint" id="lancPubMatriculaHint" hidden style="margin-top:-6px">Matrícula não é obrigatória para preposto/terceirizado.</p>
-
     <div class="field"><label>Data</label><input type="date" id="lancPubData" value="${data}"></div>
 
-    <div class="section-label">Movimento do dia (Abastecimento)</div>
-    <div class="radio-row" id="lancPubHouve">
-      <div class="radio-opt active" data-v="nao">Sem entrada hoje</div>
-      <div class="radio-opt" data-v="sim">Teve entrada (nota)</div>
-    </div>
-    <div class="grid2">
-      <div class="field" id="lancPubEntradaWrap" hidden><label>Entrada Abastecimento (l)</label><input type="number" id="lancPubEntrada" value="0" min="0"></div>
-      <div class="field"><label>Saída Abastecimento (l)</label><input type="number" id="lancPubSaida" value="0" min="0"></div>
-    </div>
-    <div class="field"><label>Saldo Abastecimento (l)</label><input type="number" id="lancPubAbSaldo" placeholder="obrigatório"></div>
-    <p class="hint" style="margin:-4px 0 4px">Esse valor vira o saldo do sistema direto (igual ao saldo físico) — a Entrada/Saída acima é só observação/justificativa.</p>
+    ${grupos.map(g=>{
+      const saldoSupAtual = saldoSuprimentoAteGrupo(u.id, g.ids, prevDate(data));
+      return `
+      <div class="section-label">Suprimento — ${escapeHtml(g.produto)}</div>
+      ${g.tanques.length>1 ? `<div class="banner-bomba">⛽ Compartilhado pelos tanques ${g.tanques.map(t=>t.numero).join(", ")} (mesmo produto) — uma nota só pro grupo.</div>` : ""}
+      <div class="saldo-atual-box" style="margin-top:0">
+        <div class="saldo-atual-title">Suprimento atual do grupo (antes deste lançamento)</div>
+        <div class="saldo-atual-grid" style="grid-template-columns:1fr"><div><span>Saldo</span><b>${fmtL(saldoSupAtual)}</b></div></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Entrada de Suprimento (l)</label><input type="number" class="lancPubSupEntrada" data-grupo="${g.key}" value="0" min="0"></div>
+        <div class="field"><label>Saída de Suprimento (l)</label><input type="number" class="lancPubSupSaida" data-grupo="${g.key}" value="0" min="0"></div>
+      </div>
+      <div class="field"><label>Saldo Suprimento (l)</label><input type="number" class="lancPubSupSaldo" data-grupo="${g.key}" placeholder="obrigatório"></div>
+      <p class="hint lancPubSupHint" style="margin:-4px 0 14px" data-grupo="${g.key}">Some aqui a Entrada/Saída de todos os tanques deste produto que você vai lançar abaixo (a soma aparece sozinha, pode ajustar se precisar).</p>
 
-    <div class="section-label">Suprimento (bomba)</div>
-    <p class="hint" style="margin:-4px 0 10px" id="lancPubSupHint">Repete automaticamente a Entrada/Saída do Abastecimento acima — só mude se o Suprimento da bomba foi diferente.</p>
-    <div class="grid2">
-      <div class="field"><label>Entrada de Suprimento (l)</label><input type="number" id="lancPubSupEntrada" value="0" min="0"></div>
-      <div class="field"><label>Saída de Suprimento (l)</label><input type="number" id="lancPubSupSaida" value="0" min="0"></div>
-    </div>
-    <div class="field"><label>Saldo Suprimento (l)</label><input type="number" id="lancPubSupSaldo" placeholder="obrigatório"></div>
+      ${g.tanques.map(t=>{
+        const saldoAbAtual = saldoAbastecimentoAte(t, prevDate(data));
+        const fisicoAtual = fisicoConhecidoAte(t, prevDate(data));
+        return `
+        <div class="section-label">Tanque ${t.numero} — ${escapeHtml(t.produto)}</div>
+        <div class="saldo-atual-box" style="margin-top:0">
+          <div class="saldo-atual-grid" style="grid-template-columns:1fr 1fr">
+            <div><span>Abastecimento</span><b>${fmtL(saldoAbAtual)}</b></div>
+            <div><span>Último físico</span><b>${fmtL(fisicoAtual)}</b></div>
+          </div>
+        </div>
+        <div class="radio-row lancPubHouve" data-tanque="${t.id}">
+          <div class="radio-opt active" data-v="nao">Sem entrada hoje</div>
+          <div class="radio-opt" data-v="sim">Teve entrada (nota)</div>
+        </div>
+        <div class="grid2">
+          <div class="field lancPubEntradaWrap" data-tanque="${t.id}" hidden><label>Entrada Abastecimento (l)</label><input type="number" class="lancPubEntrada" data-tanque="${t.id}" data-grupo="${g.key}" value="0" min="0"></div>
+          <div class="field"><label>Saída Abastecimento (l)</label><input type="number" class="lancPubSaida" data-tanque="${t.id}" data-grupo="${g.key}" value="0" min="0"></div>
+        </div>
+        <div class="field"><label>Saldo Abastecimento (l)</label><input type="number" class="lancPubAbSaldo" data-tanque="${t.id}" placeholder="obrigatório"></div>
+        <div class="field"><label>Saldo físico (l)</label><input type="number" min="0" class="lancPubFisico" data-tanque="${t.id}" placeholder="obrigatório — ex: 9200"></div>
+      `;}).join("")}
+    `;}).join("")}
 
-    <div class="section-label">Saldo físico (régua)</div>
-    <div class="field"><label>Saldo físico (l)</label><input type="number" min="0" id="lancPubFisico" placeholder="obrigatório — ex: 9200"></div>
+    <div class="field" style="margin-top:4px"><label>Observação (opcional)</label><textarea id="lancPubObs" rows="2" placeholder="Explique se houve ajuste, mapa em aberto, etc."></textarea></div>
 
-    <div class="field" style="margin-top:14px"><label>Observação (opcional)</label><textarea id="lancPubObs" rows="2" placeholder="Explique se houve ajuste, mapa em aberto, etc."></textarea></div>
-
-    <button class="btn btn-primary" id="lancPubEnviar" type="button" style="width:100%;margin-top:18px">Enviar lançamento</button>
+    <button class="btn btn-primary" id="lancPubEnviar" type="button" style="width:100%;margin-top:18px">Enviar lançamento (${tanquesVisiveis.length} ${tanquesVisiveis.length>1?"tanques":"tanque"})</button>
   `;
 
-  document.getElementById("lancPubTrocarUnidade").addEventListener("click", ()=>{ lancPubState = { unidadeId:null, tanqueId:null, supEditado:false }; renderPublicLancamento(); });
-  document.getElementById("lancPubTanque").addEventListener("change", (e)=>{ lancPubState.tanqueId = e.target.value; lancPubState.supEditado = false; renderPublicLancamento(); });
+  document.getElementById("lancPubTrocarUnidade").addEventListener("click", ()=>{ lancPubState = { unidadeId:null }; renderPublicLancamento(); });
   document.getElementById("lancPubData").addEventListener("change", ()=>renderPublicLancamento());
 
   document.getElementById("lancPubNome").value = preservado.nome;
@@ -6008,46 +6013,52 @@ function renderPublicLancamento(){
     matriculaHint.hidden = !prepostoCb.checked;
   });
 
-  // pré-preenche Suprimento com o que já foi lançado hoje para este produto (se houver),
-  // senão espelha o Abastecimento — igual o modal "Incluir saldo" do admin.
-  const grupoKey = grupoKeyDe(grupoIds);
-  const supExistente = suprimentos.find(s=>s.unidadeId===u.id && s.grupoKey===grupoKey && s.data===data);
-  const supEntradaEl = document.getElementById("lancPubSupEntrada");
-  const supSaidaEl = document.getElementById("lancPubSupSaida");
-  const supSaldoEl = document.getElementById("lancPubSupSaldo");
-  const supHint = document.getElementById("lancPubSupHint");
-  let supEditado = false;
-  if(supExistente){
-    supEntradaEl.value = supExistente.supEntrada||0;
-    supSaidaEl.value = supExistente.supSaida||0;
-    supSaldoEl.value = (supExistente.supSaldoManual===null||supExistente.supSaldoManual===undefined) ? "" : supExistente.supSaldoManual;
-    supEditado = true;
-    supHint.textContent = "Já existe Suprimento lançado para esta bomba nesta data — ajuste abaixo se precisar.";
-  }
-  function getMovimento(){
-    const entrada = Number(document.getElementById("lancPubEntradaWrap").hidden?0:document.getElementById("lancPubEntrada").value||0);
-    const saida = Number(document.getElementById("lancPubSaida").value||0);
-    return { abE:entrada, abS:saida };
-  }
-  function mirrarSuprimentoSeNaoEditado(){
-    if(supEditado) return;
-    const {abE, abS} = getMovimento();
-    supEntradaEl.value = abE;
-    supSaidaEl.value = abS;
-    supSaldoEl.value = document.getElementById("lancPubAbSaldo").value;
-  }
-  document.getElementById("lancPubEntrada").addEventListener("input", mirrarSuprimentoSeNaoEditado);
-  document.getElementById("lancPubSaida").addEventListener("input", mirrarSuprimentoSeNaoEditado);
-  document.getElementById("lancPubAbSaldo").addEventListener("input", mirrarSuprimentoSeNaoEditado);
-  [supEntradaEl, supSaidaEl, supSaldoEl].forEach(el=>el.addEventListener("input", ()=>{ supEditado = true; }));
+  // pré-preenche o Suprimento de cada grupo com o que já foi lançado hoje para aquele
+  // produto (se houver) — igual o modal "Incluir saldo" do admin — senão deixa a soma
+  // automática da Entrada/Saída de Abastecimento dos tanques do grupo cuidar disso.
+  const supEditadoPorGrupo = {};
+  grupos.forEach(g=>{
+    const supExistente = suprimentos.find(s=>s.unidadeId===u.id && s.grupoKey===g.key && s.data===data);
+    if(supExistente){
+      document.querySelector(`.lancPubSupEntrada[data-grupo="${g.key}"]`).value = supExistente.supEntrada||0;
+      document.querySelector(`.lancPubSupSaida[data-grupo="${g.key}"]`).value = supExistente.supSaida||0;
+      document.querySelector(`.lancPubSupSaldo[data-grupo="${g.key}"]`).value = (supExistente.supSaldoManual===null||supExistente.supSaldoManual===undefined) ? "" : supExistente.supSaldoManual;
+      supEditadoPorGrupo[g.key] = true;
+      const hint = document.querySelector(`.lancPubSupHint[data-grupo="${g.key}"]`);
+      if(hint) hint.textContent = "Já existe Suprimento lançado para este produto nesta data — ajuste abaixo se precisar.";
+    }
+  });
 
-  document.getElementById("lancPubHouve").querySelectorAll(".radio-opt").forEach(opt=>{
-    opt.addEventListener("click", ()=>{
-      document.getElementById("lancPubHouve").querySelectorAll(".radio-opt").forEach(o=>o.classList.remove("active"));
-      opt.classList.add("active");
-      document.getElementById("lancPubEntradaWrap").hidden = opt.dataset.v!=="sim";
-      if(opt.dataset.v!=="sim") document.getElementById("lancPubEntrada").value = 0;
-      mirrarSuprimentoSeNaoEditado();
+  function mirrarGrupo(grupoKey){
+    if(supEditadoPorGrupo[grupoKey]) return;
+    let somaE = 0, somaS = 0;
+    document.querySelectorAll(`.lancPubEntrada[data-grupo="${grupoKey}"]`).forEach(el=>{
+      const wrap = document.querySelector(`.lancPubEntradaWrap[data-tanque="${el.dataset.tanque}"]`);
+      somaE += Number(wrap.hidden ? 0 : el.value || 0);
+    });
+    document.querySelectorAll(`.lancPubSaida[data-grupo="${grupoKey}"]`).forEach(el=>{ somaS += Number(el.value||0); });
+    document.querySelector(`.lancPubSupEntrada[data-grupo="${grupoKey}"]`).value = somaE;
+    document.querySelector(`.lancPubSupSaida[data-grupo="${grupoKey}"]`).value = somaS;
+  }
+  document.querySelectorAll(".lancPubEntrada, .lancPubSaida").forEach(el=>{
+    el.addEventListener("input", ()=>mirrarGrupo(el.dataset.grupo));
+  });
+  document.querySelectorAll(".lancPubSupEntrada, .lancPubSupSaida, .lancPubSupSaldo").forEach(el=>{
+    el.addEventListener("input", ()=>{ supEditadoPorGrupo[el.dataset.grupo] = true; });
+  });
+
+  document.querySelectorAll(".lancPubHouve").forEach(row=>{
+    row.querySelectorAll(".radio-opt").forEach(opt=>{
+      opt.addEventListener("click", ()=>{
+        row.querySelectorAll(".radio-opt").forEach(o=>o.classList.remove("active"));
+        opt.classList.add("active");
+        const tanqueId = row.dataset.tanque;
+        const wrap = document.querySelector(`.lancPubEntradaWrap[data-tanque="${tanqueId}"]`);
+        wrap.hidden = opt.dataset.v!=="sim";
+        const inp = wrap.querySelector("input");
+        if(opt.dataset.v!=="sim") inp.value = 0;
+        mirrarGrupo(inp.dataset.grupo);
+      });
     });
   });
 
@@ -6059,41 +6070,54 @@ function renderPublicLancamento(){
     if(!isPreposto && !matricula){ showToast("Informe a matrícula (ou marque que é preposto/terceirizado)."); return; }
     const dataEnvio = document.getElementById("lancPubData").value;
     if(!dataEnvio){ showToast("Informe a data."); return; }
-    const abSaldoManualStr = document.getElementById("lancPubAbSaldo").value;
-    const supSaldoManualStr = supSaldoEl.value;
-    const fisicoStr = document.getElementById("lancPubFisico").value;
-    if(abSaldoManualStr===""){ showToast("Informe o Saldo Abastecimento."); return; }
-    if(supSaldoManualStr===""){ showToast("Informe o Saldo Suprimento."); return; }
-    if(fisicoStr===""){ showToast("Informe o Saldo físico (régua)."); return; }
+
+    for(const g of grupos){
+      const supSaldoEl = document.querySelector(`.lancPubSupSaldo[data-grupo="${g.key}"]`);
+      if(supSaldoEl.value===""){ showToast(`Informe o Saldo Suprimento de ${g.produto}.`); return; }
+    }
+    for(const t of tanquesVisiveis){
+      const abSaldoEl = document.querySelector(`.lancPubAbSaldo[data-tanque="${t.id}"]`);
+      const fisicoEl = document.querySelector(`.lancPubFisico[data-tanque="${t.id}"]`);
+      if(abSaldoEl.value===""){ showToast(`Informe o Saldo Abastecimento do Tanque ${t.numero}.`); return; }
+      if(fisicoEl.value===""){ showToast(`Informe o Saldo físico do Tanque ${t.numero}.`); return; }
+    }
 
     const btn = document.getElementById("lancPubEnviar");
     btn.disabled = true; btn.textContent = "Enviando...";
     try{
-      const {abE, abS} = getMovimento();
-      const fisico = Number(fisicoStr);
       const obs = document.getElementById("lancPubObs").value.trim();
 
-      const l = {
-        id: t.id+"__"+dataEnvio, unidadeId:u.id, tanqueId:t.id, produto:t.produto, data:dataEnvio,
-        abEntrada:abE, abSaida:abS, abSaldoManual:Number(abSaldoManualStr),
-        saldoFisico:fisico, printAssetId:null, fotoAssetId:null, obs, exemplo:false,
-        responsavelNome: nome, responsavelMatricula: isPreposto?null:matricula, responsavelPreposto: isPreposto,
-      };
-      await saveLancamento(l);
+      for(const t of tanquesVisiveis){
+        const wrap = document.querySelector(`.lancPubEntradaWrap[data-tanque="${t.id}"]`);
+        const abE = Number(wrap.hidden ? 0 : document.querySelector(`.lancPubEntrada[data-tanque="${t.id}"]`).value || 0);
+        const abS = Number(document.querySelector(`.lancPubSaida[data-tanque="${t.id}"]`).value || 0);
+        const abSaldoManual = Number(document.querySelector(`.lancPubAbSaldo[data-tanque="${t.id}"]`).value);
+        const fisico = Number(document.querySelector(`.lancPubFisico[data-tanque="${t.id}"]`).value);
+        const l = {
+          id: t.id+"__"+dataEnvio, unidadeId:u.id, tanqueId:t.id, produto:t.produto, data:dataEnvio,
+          abEntrada:abE, abSaida:abS, abSaldoManual,
+          saldoFisico:fisico, printAssetId:null, fotoAssetId:null, obs, exemplo:false,
+          responsavelNome: nome, responsavelMatricula: isPreposto?null:matricula, responsavelPreposto: isPreposto,
+        };
+        await saveLancamento(l);
+      }
 
-      const grupoKeyEnvio = grupoKeyDe(grupoIds);
-      const supExistenteEnvio = suprimentos.find(s=>s.unidadeId===u.id && s.grupoKey===grupoKeyEnvio && s.data===dataEnvio);
-      const s = {
-        id: supExistenteEnvio ? supExistenteEnvio.id : ("sup-"+u.id+"-"+grupoKeyEnvio.replace(/,/g,"_")+"-"+dataEnvio+"-"+Date.now().toString(36)),
-        unidadeId:u.id, grupoKey:grupoKeyEnvio, tanqueIds:grupoIds, data:dataEnvio,
-        supEntrada: Number(supEntradaEl.value||0), supSaida: Number(supSaidaEl.value||0),
-        supSaldoManual: Number(supSaldoManualStr), obs,
-        criadoPor: nome, criadoEm: new Date().toISOString(),
-      };
-      await saveSuprimento(s);
+      for(const g of grupos){
+        const supExistenteEnvio = suprimentos.find(s=>s.unidadeId===u.id && s.grupoKey===g.key && s.data===dataEnvio);
+        const supEntrada = Number(document.querySelector(`.lancPubSupEntrada[data-grupo="${g.key}"]`).value||0);
+        const supSaida = Number(document.querySelector(`.lancPubSupSaida[data-grupo="${g.key}"]`).value||0);
+        const supSaldoManual = Number(document.querySelector(`.lancPubSupSaldo[data-grupo="${g.key}"]`).value);
+        const s = {
+          id: supExistenteEnvio ? supExistenteEnvio.id : ("sup-"+u.id+"-"+g.key.replace(/,/g,"_")+"-"+dataEnvio+"-"+Date.now().toString(36)),
+          unidadeId:u.id, grupoKey:g.key, tanqueIds:g.ids, data:dataEnvio,
+          supEntrada, supSaida, supSaldoManual, obs,
+          criadoPor: nome, criadoEm: new Date().toISOString(),
+        };
+        await saveSuprimento(s);
+      }
 
       showToast("Lançamento registrado com sucesso.");
-      lancPubState = { unidadeId:null, tanqueId:null, supEditado:false, done:{ unidadeNome:u.nome, nome } };
+      lancPubState = { unidadeId:null, done:{ unidadeNome:u.nome, nome, qtd:tanquesVisiveis.length } };
       renderPublicLancamento();
     }catch(e){
       console.error("[saldo] falha ao salvar lançamento (link público):", e);
