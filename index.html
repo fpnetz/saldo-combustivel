@@ -1376,7 +1376,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-24-v107";
+const APP_BUILD = "2026-11-24-v108";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -5897,7 +5897,7 @@ function renderPublicLancamento(){
   if(!u){
     body.innerHTML = `
       <p class="hint" style="margin-top:0">Escolha a unidade para lançar o saldo do dia completo: Abastecimento, Suprimento e Saldo físico da régua.</p>
-      <div class="field">
+      <div class="field" style="position:relative">
         <label for="lancPubUnidadeInput">Unidade</label>
         <input id="lancPubUnidadeInput" type="text" autocomplete="off" placeholder="Selecione a unidade">
         <div class="af-combo-list" id="lancPubUnidadeList" hidden></div>
