@@ -743,6 +743,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 /* ---------- Link público de aferição ---------- */
 #afPublico{position:fixed;inset:0;background:var(--bg);z-index:50;overflow:auto}
 #lancPublico{position:fixed;inset:0;background:var(--bg);z-index:50;overflow:auto}
+#publicoEscolha{position:fixed;inset:0;background:var(--bg);z-index:50;overflow:auto}
 .af-pub-wrap{max-width:640px;margin:0 auto;padding:28px 16px 60px}
 .af-pub-card{background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:24px 22px;margin-bottom:16px;font-family:"IBM Plex Sans",system-ui,sans-serif}
 .af-pub-card .field{margin-bottom:12px}
@@ -949,6 +950,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       <div class="fab-row">
         <button class="btn btn-add" id="openIncluirSaldo">+ Incluir saldo</button>
         <button class="btn btn-ghost" id="openLinkLancamentoGlobal2">Link de lançamento</button>
+        <button class="btn btn-ghost" id="openLinkPublicoGlobal2">Link único</button>
       </div>
 
       <div class="filters">
@@ -1296,6 +1298,24 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 </div>
 
+<!-- ============ LINK ÚNICO: ESCOLHA (?publico=1) ============ -->
+<div id="publicoEscolha" hidden>
+  <div class="af-pub-wrap">
+    <div class="af-pub-card">
+      <div class="login-brand" style="margin-bottom:18px">
+        <img src="data:image/png;base64,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" alt="Atlântico Transportes" class="brand-logo-img">
+        <span class="login-brand-divider"></span>
+        <span class="login-brand-label">O que você quer fazer?</span>
+      </div>
+      <p class="hint" style="margin-top:0">Escolha abaixo. Depois de começar, dá pra trocar de unidade ou voltar a esta tela recarregando o link.</p>
+      <button class="btn btn-primary" id="escolhaLancamento" type="button" style="width:100%;margin-top:14px">Lançar saldo diário</button>
+      <p class="hint" style="margin:6px 0 0">Abastecimento, Suprimento e Saldo físico de todos os tanques da unidade.</p>
+      <button class="btn btn-ghost" id="escolhaAfericao" type="button" style="width:100%;margin-top:18px">Registrar aferição</button>
+      <p class="hint" style="margin:6px 0 0">Saldo físico com foto da régua, aferição de bomba e comprovante em PDF.</p>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <div id="printRoot"></div>
 
@@ -1377,7 +1397,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-24-v110";
+const APP_BUILD = "2026-11-24-v111";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -5253,6 +5273,46 @@ function openLinkLancamentoGlobal(){
   };
 }
 
+// link único: abre uma telinha de escolha ("Lançar saldo" ou "Registrar aferição") e a
+// partir dali segue exatamente os mesmos dois formulários de cima — não substitui os
+// links individuais (?af=1 / ?lanc=1), que continuam funcionando, é só uma porta de
+// entrada única pra quem for responsável pelas duas coisas na unidade.
+function linkPublicoUnico(){
+  return location.origin + location.pathname + "?publico=1";
+}
+function openLinkPublicoGlobal(){
+  if(!requireAdmin()) return;
+  document.getElementById("linkPubModalBackdrop")?.remove();
+  const link = linkPublicoUnico();
+  const html = `
+    <div class="modal-backdrop" id="linkPubModalBackdrop">
+      <div class="modal" style="max-width:480px">
+        <div class="modal-head"><h2>Link único</h2><button class="close-x" id="linkPubClose">&times;</button></div>
+        <div class="modal-body">
+          <p class="hint" style="margin-top:0">Um único link pra tudo — compartilhe com quem é responsável pelo abastecimento e pela aferição. Quem abrir escolhe entre "Lançar saldo" ou "Registrar aferição" e segue o formulário correspondente, sem acessar o resto do sistema e sem usuário/senha.</p>
+          <div class="field"><label>Link</label><input id="linkPubInput" readonly value="${link}"></div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-primary" id="linkPubCopiar">Copiar link</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
+  const bd = document.getElementById("linkPubModalBackdrop");
+  document.getElementById("linkPubClose").onclick = ()=>bd.remove();
+  bd.addEventListener("click",(e)=>{ if(e.target===bd) bd.remove(); });
+  document.getElementById("linkPubCopiar").onclick = async ()=>{
+    const input = document.getElementById("linkPubInput");
+    try{
+      await navigator.clipboard.writeText(input.value);
+      showToast("Link copiado.");
+    }catch(e){
+      input.select();
+      showToast("Não foi possível copiar automaticamente — link selecionado, use Ctrl+C.");
+    }
+  };
+}
+
 function openNovaUnidade(){
   if(!requireAdmin()) return;
   document.getElementById("uModalBackdrop")?.remove();
@@ -5770,6 +5830,25 @@ async function enterApp(){
   populateFilterUnidadesRelatorio();
   renderTable();
   setView("dashboard");
+}
+
+/* ===================== Link único (sem login) =====================
+   Aberto via ?publico=1 — porta de entrada única que simplesmente deixa a pessoa escolher
+   entre "Lançar saldo" (?lanc=1) e "Registrar aferição" (?af=1) e segue exatamente os
+   mesmos dois formulários de sempre a partir daí; não mexe no conteúdo de nenhum dos dois. */
+function initPublicEscolha(){
+  document.getElementById("login").style.display = "none";
+  document.getElementById("themeToggleLogin").hidden = true;
+  document.getElementById("app").style.display = "none";
+  document.getElementById("publicoEscolha").hidden = false;
+  document.getElementById("escolhaLancamento").addEventListener("click", ()=>{
+    document.getElementById("publicoEscolha").hidden = true;
+    initPublicLancamento();
+  });
+  document.getElementById("escolhaAfericao").addEventListener("click", ()=>{
+    document.getElementById("publicoEscolha").hidden = true;
+    initPublicAfericao();
+  });
 }
 
 /* ===================== Link público de aferição (sem login) =====================
@@ -6479,6 +6558,7 @@ document.getElementById("openIncluirSaldo").addEventListener("click",()=>openInc
 document.getElementById("openNovaUnidade").addEventListener("click", openNovaUnidade);
 document.getElementById("openLinkAfericaoGlobal2").addEventListener("click", openLinkAfericaoGlobal);
 document.getElementById("openLinkLancamentoGlobal2").addEventListener("click", openLinkLancamentoGlobal);
+document.getElementById("openLinkPublicoGlobal2").addEventListener("click", openLinkPublicoGlobal);
 document.getElementById("refreshDataBtn").addEventListener("click", refreshAllData);
 document.getElementById("openNovoUsuario").addEventListener("click", openNovoUsuario);
 document.getElementById("testarDb").addEventListener("click", testarConexaoDb);
@@ -6597,10 +6677,13 @@ initTheme();
 initLogoPadrao();
 const afParam = new URLSearchParams(location.search).get("af");
 const lancParam = new URLSearchParams(location.search).get("lanc");
+const publicoParam = new URLSearchParams(location.search).get("publico");
 if(afParam){
   initPublicAfericao();
 } else if(lancParam){
   initPublicLancamento();
+} else if(publicoParam){
+  initPublicEscolha();
 } else {
   restoreSession();
   if(session){ enterApp(); }
