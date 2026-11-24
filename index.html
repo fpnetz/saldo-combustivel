@@ -947,6 +947,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 
       <div class="fab-row">
         <button class="btn btn-add" id="openIncluirSaldo">+ Incluir saldo</button>
+        <button class="btn btn-ghost" id="openLinkLancamentoGlobal2">Link de lançamento</button>
       </div>
 
       <div class="filters">
@@ -1280,6 +1281,20 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 </div>
 
+<!-- ============ LINK PÚBLICO DE LANÇAMENTO (?lanc=1) ============ -->
+<div id="lancPublico" hidden>
+  <div class="af-pub-wrap">
+    <div class="af-pub-card">
+      <div class="login-brand" style="margin-bottom:18px">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKIAAAAmCAYAAABH00DVAAAWkUlEQVR4nO1cd3RU1fb+zrl3emYmkzqTRoAQIhACUqSIVKVJExQQJRhFEeFJU2nqEykCKoiiNEUQBAEpIiBKL6ELoYUkkN4nyWQymT5z7++PmfQJ4vv5lu/x5lvrrmTdOedk732+s/c++5wJ4IUXXnjhhRdeeOGFF3VB/j+dxWIxgtUa1j8wUCyWSQUAYDGZ7EX5+eaC/Hwnx3F/jZRePPT400SklKJVbKykx6hn+4X3GzBb5xfQLc9iQyXHged5yFkGURIx0ld90nnH2q8u2Wy2f4fcXjxk+FNEjIqOFj6/eNnSzJatp13SVyLDbIXFg9cTEIKhQX7Qz5+lOfLz/kKZTIaAwCA2KzPD8ZdJ7sVDBfogjViWxTPj46N77z5k3RgYNm1LvhbJRrNHEgKAnedxzWBE3MBBw3xVKvLujRS+495f7C+99U6Pv1R6Lx4a/KFHZFkWL7w5vXvas+PPXDYYYfVAPoYQiCgFeB4WjgMHIFwsxMsVxeudMW0mrs4phN7hRIxMgpGFWSsXjx453eHwOkcvavCHROw/bHjovVnv5d41WWo6EQIBIXjc1wd9Kkr3Hlm25NWr58+VcByH1u3aK5+aNvP9vOjW01JNZlwzmGBwOqv7hotFGJ+fvnjpi2PnPaxkpJQitn17mSaiiapSX266ceWKTq/X83+3XP/JuC8Ru/To4WtZ+rnumsFU/c6Hoejmq0DTn3YO2vjRokOeNiNyuZw0i46Wdnyqf2fTmPhjv5TooatFutY+EvT4bf/TGxYuOPCwkVGpVJJ/rN+4fLlKM1NKKcwcj3ebhWJR2xhiNBr/bvH+Y9FojhgWEcFGr/6mDgnVIiGmRmhwb8xQ4doF73skoVgsxuQVq2YM3b6nMvlc4rVj/XsycyKCTeFiYXWb20YLCoc993NM69aSv1ifvxW+KhWZtmnrFxsCw2dGSsSYHaE2cQB+K6tA32HDm//d8v0ng/X0klKKiV+t3/CJtqz6nb+AxWthwdg6qK/o3t27dk/9hEIh3t66fcVudeS0JhVGcE4nX1RYyL0X21I2b/+hnatF8lGFVht4nschrQ7vr/n6yNyuHbv/WaE1ISGMJjRMoteVWXOys+21F4SvSkXCIyMlQqGQcb3x5PTrRsny0lJLTna2PTAoiAnWhEjsDjuXnZ5u/rPhtFlUCxlpEze5i8GIR0vyd515f/nsV+YvvKt3OMCGhKgppffq11YDg4KoOjRULBQKGYNeb8vOzLRaLJYGY/uqVKRZVAuZk3Py6ampJrvdzreKbetDKCGN61lXV7PJZE9NTraoNSFskFottjvsXPKNG6baUamqNuzr7ydiWZbWjFszjs1mc6bcumWqb3dNSIhIIpWxhFJSu4/VYnFoi4qs2uJirrHaskfp28TFScK/2W46XKIDB0BICZ4LDkDq6y/5Xjx7Ru+pj0wmw7wjJ8+us5FumRYrhgaqkPtavPz3SxcrqwSdcfkGt+BeDhy8S8BWUjGyBvR44JBFKcX0z798Lffx3msMDg4ShqL5pTPTV0/7x0qj0QiWZTH105UJqd37fF2j7h8TsZPCB4fGj1F237hVn2I0Q8EwCDiwe8TqeXP2PpBgbvj5+5OXFy+dcqdT91UOjgelBG1kEtyY91aTS6dO5mqLi+vMwjPj46PD5/4z5a7RDA6AiFJ0ZUnWgi6PRta2iVKpJDO2/rDhgiYigRICsuyDZh1fmDD/vCY8oa5+9XWtq6daKEDGrKlB3T5fW3y1wggflkHi033ZvNxcZ1hEBPviwiWzDR27fphvtcHK8+B43j1m3XGUDIO01+IVVy9dNDw5ZGhovxWrc69VGmFwOGHnq9rW9GMIgZxh0F5Ai3e+PL7FpXOJFfVt59EjDpw89ZUdlSZUWS1MJELAkQPjvz+X6JGESqWSzLt8vXJlnlaab7UCACghsDvs1YYv1+n4szOnhPWYuzD3uM4lR4rJgmnLPn7tkzdeX+tp3PqIn/lWjx1tOq3JLSxFlYkei+28oll09LobV6+afORyohky4usVqVkPMlw1mkvFsNmszkMl5UgxmtFUIkKHe3dT/9QgADo93iMkpVP3VYdL9bC5V/51gwkvjRk3/eCundNrt6WUosvs+Sc+yC2G0b2ZIwTI8pE1eW7ylB4bly89XdU2NCJCdF4dkXCopBxBAgGekMokp9XhCUdKPE5Ho+ilUiCyTWz0rqJSpJosaC+XweFw8IFBQXTS8bP2r3KKoM0rhp3nwfONB4NwkRDC0hLL2Nff6KBLeP3ywoxcGJycm7ieQQnBYZYNenvrDn3u453Zgvx8Z53P63dgWRaC3v1WFbrdLkMIHlPKsP7ded95cqu+KhWZf+02tyynWJpvvf8pyoWTJ/P7B/hWr1sngIyuvdfct5MbcR06yC4OG3sqx2IFASAkBDyAa4ZKNGkRHQQAKpWKLbHZoWCo66EUCpaB0B29CABprc/klMKPZRFBSYWvn7+kqjSlZBkc+mH77QeRqwp+/v6k/fLPcg+WlMPGcZBSl2lzLVY427afJhQK67QPj2jCZoPRVJMQAM8D1w1GBE+cfEomk9WMHRgovV7p8pCdfX2QlZycW0dP9+PORUAAyNzv5IxLTzmlGMAiVebvH1xkc2VWT6jkMBmNfM+nh8Qsy8xHntUGO8dBCEDBMg3GV1DXzydUCgCAeuqMy4dLyqF3OEF5HiEiIZqKRXWecLEIAkLA8TzK7HZcrDCiSfPm8vr2a+ARW7RsKU43W2HlXOwWUYJW2oJd2zyEz7CICPbN44nmJRl5KLP/8e63XKfjiw/smxje9rH12RYXaW+bzKCU4n7n0mEREWy7b7dXfl9QApYQPBvsj9Y+Urx7LxsWjkf7xcszft7xA8lIT7evjI0mAoGguq+PXE5b7f3VeV5fCX8BixdvXnx53Zx3vqn63ApgrtWKf/56/KdPHC5SyBkWf2aHKxaL8ebm7zcuyyqAg+fRTi6FevmC8MOTZuXwAO6aLIjr0FFROyR17tu35eWKSgBAsFCA6U00mJOWDSeAMzoDBo4e02rXN1/fBgCZXCEps7tk66CQYU1GeqW+TxfCMEy1DJrQUKFy007rlQoj1CIBOq1bEXV03757teX8EMDsfT/vNDhdtg4syj9otVp5xbTZtyoKtBBSgplNNNg3cogkKz29YaLqxg9WK0ZMmND6UEk5nAAixCJ02vjFI/u/33qn/jxSSpEwZ97ADd2fOujkeTDg4XQ4G0x2A48Y0aKFf6m9xmuKKMW5Natn1m/XPCpKMOXEOfuizDzWEwkJAJ7jGvjqtLOnj0ZJazbLWrsdIWFhHlMEwOVppuw9kPRLSTnsPI8OCh+kvjpeYf190ie+rKvbtnwtWPfvNpsNRqOx+hGLJfSawUWqGJkE6RfOn6r9udFoBMdxyAjSDDE4nCAA4uTSxsTxiGcSXm6/XRkUb+Q4REpEiNm8tt0ve3bnqtwyHdNVoOf4CS9SWmPusLi4x+4YzQCAgQG+WBT3CG0qEQMAzukN6PzW3ONKpZIAQLthI563cBwIAIm+/Lq+vJyzWCx1dOgzemyvUvc8SBkGSYnnsurrqfL3Z/M0EaM4noeQEhRdPL+Z4zic1Rvc9pGieOO6Prdv3LDU71vfXmFt2nbMsrjSsJFBfji6b2+KzWaDw+Go89hsNtgtFlNVqNeIhCjTFpvr27ABEeV+/kpTrQK0mFIknT+XV7tNq9hY8eiDR20L03NR7nDWHwKAK6Q7HY4GRCzMyi71ZWtWstXJQRMa5nHmhUIhxs6YNewHK9eqyGZHmFiItvt3PHnlwnnDtR9/WN1e7gpf2RYbBo4a1dTTGNFtY4MsHA8C4FGFD66dPZPZQGe5nGhtdjh4HpQQOHZsedqjUh4QrFZT88SpvycbzVCxDCbJxam/7txxHQCGB/sBALQ2OwI6d3lVInEtQEopJH4B4Ua3Y2hyL+VLo9HITwrwKWAI4OR57DeYg9p36RoAAEWdui3jAShYFobUOz97KptFjYvfpnMTMUoiRl5uTgPv4KtSCa64vXCEWITspGtXmkRGCnLc0amZRIRbZ85c/SOdZTIZ0Tw1YInJ6VocfnlZu0xGY6MJYkz8S9s4uO4ghBGUFRYUNKi6NCAiZRimdtLJEgKbzVb9okuPHr49f9hr/jQrH5VOzyQEXMmpzWpr0MDpcHAMqdnd8QBEErFHj9i1Z6+AnIHD9yRVGMESgufVAci8kXT7yaFDQ8Q+cmmQ0O0FeR7h7y1K9zjGhFdmAwBLCcLEQuRkZzeYoKiYR3wq3aRgCfDjl18citUiAyT562zWBUB3LQb+0b1+6aKqcwbFBYmz1T1LhVVQKrdxsXlWAp+gcdYTHUp5HcW7wSoYdGjMvDC9L0Wg08WuGhVYIpcwD9wsgUibG6cPnW8TnP+gSyJGKk5OzooBXr0jzqo3MzBf2SpHtkhALBoAEGQYF2VlFALDh2PFmhBAnACSZLKg0GhvM4ejhXUtKruZ6bAcAJoMBVqu1etxuPWJu2EwcKwVFSaUJhJCKrT9+t2/eylXvV/ULEArQX72yzuaw/5Kfm8t66nvh1KkLL44dM9Nut6POKWalEcbqvj6tj6/Pjc4bNrtOFCmlmLbsnz9mF5TB4OTqzFGm0cQ0bRYyRCwWVwDA0u3fnxoxatRqo9Fkqb3IIBAK0W/B2+e+nTu7gU2+mPFm3zPbt17V6/UNfOvbLWJAoA91pGSWmrW5zgaDUCrn7MkfdH8l53Mcx1X3/XLenMNjBg2aU/zbmcLaOlNKEfPkk/JZq1avzU7UPlOh1XK1E2OpVERbxDaTnd+1q0G0fHbCxLlSmaxan6LUK0dOnPl9c61u6Dp8RMy0YSPeC4oIH8S66p4z6amphaOWLhu8e+2av1x+9o/w539iGN/5qYkYEBsrNRUUoCg3tzIrJcVYbDab/9xbAKRIJEJwaKioRVycjyZQKWEZRmSz2x2VBkNVYUpqiU5n+jMVCRQIEBYZIYlq3lymUKkELMuAcDwqdVVVGUlJhrw7d2qPy8AVUqX92nbqGhkRHaUKDAzwl0jEAp7n+aoqkykzJ6ckKfF6+p3Lly3Vfd1KN+yc1eu1CRN3nz5F6tulchMSglGvzOn6/Ucf19FXoVDI+o4dH7trw4ZrNosFlTYr7LwrBHMADFYrSrOyGpqhWsz6LYFAkHj39OlMAMioJyvDMKhr+Lt3TQ36sSyLIZOmxB9ettRTvzpQ6/U87/jeaTFahvMAcKvCVCO7XC5HWMsIcZtevRQhzZopFUqlwMlxvEFfYc29c8d089IlU8bVqxb3EGQAeI+hULUUQZ07d/WLjPYnlCPFubllOWnptV9k4Px69EDGhQsQlJfXkUOq0YR37zcgQN0kOFiiVIgpBcxGo6k4N7c8OTFRl3HrVtUecKIQFkpAxWIQn4bXJSWVOtvfc3K+cbugAIBhGDKvWes1erM1zOp0Yk9eMZ5fs+GxI0eO/G7n1LhlK3zs8eGj1v6csG7LMypN0wZbxLv/aD1h84bZ9+PJA3GPiD5RUU3P/vZbZf0Pg/pGy18ZNHhlcPNWbZghQyLuyYpz544qggKdh7/4Aumpqe1HzpnzcVB4RK/6Pi5vKrccPX2y1qmuh8MLL7zwwgsvvPDCCy+88OJfwL8Bk5mMlhJ1IYsAAAAASUVORK5CYII=" alt="Atlântico Transportes" class="brand-logo-img">
+        <span class="login-brand-divider"></span>
+        <span class="login-brand-label">Lançamento de saldo</span>
+      </div>
+      <div id="lancPubBody"><p class="muted">Carregando...</p></div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <div id="printRoot"></div>
 
@@ -1361,7 +1376,7 @@ let MARGEM_BOMBA_L = { ok: 0.04, warn: 0.08 }; // litros de diferença média ab
 // dentro da margem: até 0,04 l (até 40ml) · fora da margem: 0,041 a 0,08 l (41 a 80ml) ·
 // divergente: acima de 0,08 l (ex.: 0,09 a 0,20 l = 90 a 200ml, sem teto fixo acima disso)
 
-const APP_BUILD = "2026-11-23-v105";
+const APP_BUILD = "2026-11-24-v106";
 
 /* Rede de segurança global: qualquer erro não tratado (síncrono ou em promise)
    agora aparece como um aviso visível, em vez de "não acontecer nada".
@@ -5165,6 +5180,45 @@ function openLinkAfericaoGlobal(){
   };
 }
 
+// mesmo princípio do link de aferição: link único, sem senha, quem abre escolhe a unidade.
+// Dá pra registrar o lançamento do dia (Abastecimento/Suprimento/Saldo físico) completo —
+// os mesmos campos que hoje só o admin digita — sem acesso ao resto do sistema.
+function linkLancamentoGlobal(){
+  return location.origin + location.pathname + "?lanc=1";
+}
+function openLinkLancamentoGlobal(){
+  if(!requireAdmin()) return;
+  document.getElementById("linkLancModalBackdrop")?.remove();
+  const link = linkLancamentoGlobal();
+  const html = `
+    <div class="modal-backdrop" id="linkLancModalBackdrop">
+      <div class="modal" style="max-width:480px">
+        <div class="modal-head"><h2>Link de lançamento</h2><button class="close-x" id="linkLancClose">&times;</button></div>
+        <div class="modal-body">
+          <p class="hint" style="margin-top:0">Um único link para todas as unidades — compartilhe com quem é responsável pelo abastecimento em cada uma. Quem abrir escolhe a unidade e lança o saldo do dia (Abastecimento, Suprimento e, se tiver lido a régua, o Saldo físico) direto, sem acessar o resto do sistema e sem usuário/senha.</p>
+          <div class="field"><label>Link</label><input id="linkLancInput" readonly value="${link}"></div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-primary" id="linkLancCopiar">Copiar link</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
+  const bd = document.getElementById("linkLancModalBackdrop");
+  document.getElementById("linkLancClose").onclick = ()=>bd.remove();
+  bd.addEventListener("click",(e)=>{ if(e.target===bd) bd.remove(); });
+  document.getElementById("linkLancCopiar").onclick = async ()=>{
+    const input = document.getElementById("linkLancInput");
+    try{
+      await navigator.clipboard.writeText(input.value);
+      showToast("Link copiado.");
+    }catch(e){
+      input.select();
+      showToast("Não foi possível copiar automaticamente — link selecionado, use Ctrl+C.");
+    }
+  };
+}
+
 function openNovaUnidade(){
   if(!requireAdmin()) return;
   document.getElementById("uModalBackdrop")?.remove();
@@ -5721,6 +5775,316 @@ async function initPublicAfericao(){
   afPubState = { unidadeId:null, bombaQtd:{}, bombaDiffs:{} };
   renderPublicAfericao();
 }
+
+/* ===================== Link público de LANÇAMENTO (?lanc=1) =====================
+   Mesma ideia do link de aferição (sem login, link único, escolhe a unidade dentro
+   do formulário), mas cobrindo o lançamento completo do dia — Abastecimento,
+   Suprimento e Saldo físico — que hoje só o admin digita pela Consulta. Ao contrário
+   do link de aferição, aqui PRECISA carregar lancamentos/suprimentos de verdade (não
+   fica vazio), porque o formulário mostra o saldo atual de referência e mescla com
+   o que já foi lançado hoje (igual o modal "Incluir saldo" do admin faz). */
+let lancPubState = null; // { unidadeId, tanqueId, supEditado }
+async function initPublicLancamento(){
+  document.getElementById("login").style.display = "none";
+  document.getElementById("themeToggleLogin").hidden = true;
+  document.getElementById("app").style.display = "none";
+  document.getElementById("lancPublico").hidden = false;
+  const body = document.getElementById("lancPubBody");
+  let ns = null;
+  try{ ns = await claude.use("db"); }catch(e){ ns = null; }
+  if(!ns){
+    body.innerHTML = `<p>Não foi possível conectar ao banco de dados agora. Recarregue a página e tente de novo.</p>`;
+    return;
+  }
+  dbNs = ns; dbAvailable = true;
+  try{ assetsNs = await claude.use("assets"); }catch(e){ assetsNs = null; }
+  try{
+    const uRes = await dbNs.collection("unidades").get();
+    unidades = uRes && uRes.docs ? uRes.docs.filter(d=>d.exists).map(d=>d.data()).filter(Boolean) : [];
+    const lRes = await dbNs.collection("lancamentos").get();
+    lancamentos = lRes && lRes.docs ? lRes.docs.filter(d=>d.exists).map(d=>d.data()).filter(Boolean) : [];
+    const spRes = await dbNs.collection("suprimentos").get();
+    suprimentos = spRes && spRes.docs ? spRes.docs.filter(d=>d.exists).map(d=>d.data()).filter(Boolean) : [];
+  }catch(e){
+    console.error("[saldo] falha ao carregar dados (link de lançamento):", e);
+    body.innerHTML = `<p>Não foi possível carregar os dados agora. Recarregue a página e tente de novo.</p>`;
+    return;
+  }
+  agendamentos = []; afericoesBomba = [];
+  session = { user:"link-publico", role:"publico", nome:"Link público de lançamento", unidadeId:null };
+  lancPubState = { unidadeId:null, tanqueId:null, supEditado:false };
+  renderPublicLancamento();
+}
+function lancPubComboOptionsHtml(filtroTexto){
+  const filtro = (filtroTexto||"").trim().toLowerCase();
+  const opcoes = afUnidadesAtivas().filter(o=>o.nome.toLowerCase().includes(filtro));
+  if(!opcoes.length) return `<div class="af-combo-empty">Nenhuma unidade encontrada</div>`;
+  return opcoes.map(o=>`<button type="button" class="af-combo-opt" data-pick-unidade="${o.id}">${escapeHtml(o.nome)}</button>`).join("");
+}
+function wireLancPubCombo(){
+  const inp = document.getElementById("lancPubUnidadeInput");
+  const list = document.getElementById("lancPubUnidadeList");
+  if(!inp || !list) return;
+  const wireOptions = ()=>{
+    list.querySelectorAll("[data-pick-unidade]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        lancPubState.unidadeId = btn.dataset.pickUnidade;
+        lancPubState.tanqueId = null;
+        list.hidden = true;
+        renderPublicLancamento();
+      });
+    });
+  };
+  const openList = (texto)=>{ list.innerHTML = lancPubComboOptionsHtml(texto); list.hidden = false; wireOptions(); };
+  inp.addEventListener("focus", ()=>openList(""));
+  inp.addEventListener("input", ()=>openList(inp.value));
+  document.addEventListener("click", (e)=>{
+    if(!inp.contains(e.target) && !list.contains(e.target)) list.hidden = true;
+  });
+}
+function renderPublicLancamento(){
+  const body = document.getElementById("lancPubBody");
+  const st = lancPubState;
+
+  if(st.done){
+    body.innerHTML = `<div class="af-done">
+        <div class="af-done-check">✓</div>
+        <h2>Lançamento registrado!</h2>
+        <p class="hint">Obrigado, ${escapeHtml(st.done.nome)}. O lançamento de ${escapeHtml(st.done.unidadeNome)} já aparece na conciliação da unidade.</p>
+        <button class="btn btn-primary" id="lancPubNova" type="button" style="width:100%;margin-top:18px">Lançar outro saldo</button>
+      </div>`;
+    document.getElementById("lancPubNova").addEventListener("click", ()=>{
+      lancPubState = { unidadeId:null, tanqueId:null, supEditado:false };
+      renderPublicLancamento();
+    });
+    return;
+  }
+
+  const u = st.unidadeId ? unidades.find(x=>x.id===st.unidadeId) : null;
+  if(!u){
+    body.innerHTML = `
+      <p class="hint" style="margin-top:0">Escolha a unidade para lançar o saldo do dia (Abastecimento, Suprimento e, se tiver lido a régua, o Saldo físico).</p>
+      <div class="field">
+        <label for="lancPubUnidadeInput">Unidade</label>
+        <input id="lancPubUnidadeInput" type="text" autocomplete="off" placeholder="Selecione a unidade">
+        <div class="af-combo-list" id="lancPubUnidadeList" hidden></div>
+      </div>`;
+    wireLancPubCombo();
+    return;
+  }
+
+  // preserva o que a pessoa já digitou (nome/matrícula/observação) ao trocar tanque ou data,
+  // já que isso reconstrói o formulário inteiro — senão um "troquei a data" apagava o nome
+  // que ela já tinha preenchido, obrigando a redigitar tudo de novo
+  const preservado = {
+    nome: document.getElementById("lancPubNome")?.value || "",
+    matricula: document.getElementById("lancPubMatricula")?.value || "",
+    preposto: document.getElementById("lancPubPreposto")?.checked || false,
+    obs: document.getElementById("lancPubObs")?.value || "",
+  };
+
+  const tanquesVisiveis = u.tanques.filter(tanqueAtivo);
+  if(!st.tanqueId || !tanquesVisiveis.some(t=>t.id===st.tanqueId)) st.tanqueId = tanquesVisiveis[0] ? tanquesVisiveis[0].id : null;
+  const t = tanquesVisiveis.find(x=>x.id===st.tanqueId);
+
+  if(!t){
+    body.innerHTML = `<p class="hint" style="margin-top:0"><b>${escapeHtml(u.nome)}</b> ainda não tem tanque ativo cadastrado.</p>
+      <button class="btn btn-ghost" id="lancPubTrocarUnidade" type="button" style="width:100%">Trocar unidade</button>`;
+    document.getElementById("lancPubTrocarUnidade").addEventListener("click", ()=>{ lancPubState.unidadeId = null; renderPublicLancamento(); });
+    return;
+  }
+
+  const data = document.getElementById("lancPubData")?.value || dstr(new Date());
+  const grupoIds = grupoDeTanques(u, t.id);
+  const irmaos = tanquesDoGrupo(u.id, t.id).filter(x=>x.id!==t.id);
+  const saldoAbAtual = saldoAbastecimentoAte(t, prevDate(data));
+  const saldoSupAtual = saldoSuprimentoAteGrupo(u.id, grupoIds, prevDate(data));
+  const fisicoAtual = fisicoConhecidoAte(t, prevDate(data));
+
+  body.innerHTML = `
+    <div class="grid2">
+      <div class="field"><label>Unidade</label><input value="${escapeHtml(u.nome)}" readonly></div>
+      <div class="field"><label>Tanque</label><select id="lancPubTanque">${tanquesVisiveis.map(x=>`<option value="${x.id}" ${x.id===t.id?"selected":""}>Tanque ${x.numero} — ${x.produto}</option>`).join("")}</select></div>
+    </div>
+    <button class="btn btn-ghost" id="lancPubTrocarUnidade" type="button" style="margin:-4px 0 14px">Trocar unidade</button>
+    ${irmaos.length ? `<div class="banner-bomba">⛽ <b>Tanque na mesma bomba de ${irmaos.map(x=>"Tanque "+x.numero).join(", ")}</b> — o Suprimento abaixo soma o grupo todo, não só este tanque.</div>` : ""}
+
+    <div class="saldo-atual-box">
+      <div class="saldo-atual-title">Saldo atual deste tanque (antes deste lançamento)</div>
+      <div class="saldo-atual-grid">
+        <div><span>Abastecimento</span><b>${fmtL(saldoAbAtual)}</b></div>
+        <div><span>Suprimento (grupo)</span><b>${fmtL(saldoSupAtual)}</b></div>
+        <div><span>Último físico</span><b>${fmtL(fisicoAtual)}</b></div>
+      </div>
+    </div>
+
+    <div class="field"><label>Nome completo</label><input id="lancPubNome" placeholder="ex: João da Silva Santos"></div>
+    <label class="checkbox-row"><input type="checkbox" id="lancPubPreposto"> Sou preposto / terceirizado</label>
+    <div class="field" id="lancPubMatriculaWrap"><label>Matrícula</label><input id="lancPubMatricula" placeholder="ex: 00412"></div>
+    <p class="hint" id="lancPubMatriculaHint" hidden style="margin-top:-6px">Matrícula não é obrigatória para preposto/terceirizado.</p>
+
+    <div class="field"><label>Data</label><input type="date" id="lancPubData" value="${data}"></div>
+
+    <div class="section-label">Movimento do dia (Abastecimento)</div>
+    <div class="radio-row" id="lancPubHouve">
+      <div class="radio-opt active" data-v="nao">Sem entrada hoje</div>
+      <div class="radio-opt" data-v="sim">Teve entrada (nota)</div>
+    </div>
+    <div class="grid2">
+      <div class="field" id="lancPubEntradaWrap" hidden><label>Entrada Abastecimento (l)</label><input type="number" id="lancPubEntrada" value="0" min="0"></div>
+      <div class="field"><label>Saída Abastecimento (l)</label><input type="number" id="lancPubSaida" value="0" min="0"></div>
+    </div>
+    <div class="field"><label>Saldo Abastecimento (l)</label><input type="number" id="lancPubAbSaldo" placeholder="obrigatório"></div>
+    <p class="hint" style="margin:-4px 0 4px">Esse valor vira o saldo do sistema direto (igual ao saldo físico) — a Entrada/Saída acima é só observação/justificativa.</p>
+
+    <div class="section-label">Suprimento (bomba)</div>
+    <p class="hint" style="margin:-4px 0 10px" id="lancPubSupHint">Repete automaticamente a Entrada/Saída do Abastecimento acima — só mude se o Suprimento da bomba foi diferente.</p>
+    <div class="grid2">
+      <div class="field"><label>Entrada de Suprimento (l)</label><input type="number" id="lancPubSupEntrada" value="0" min="0"></div>
+      <div class="field"><label>Saída de Suprimento (l)</label><input type="number" id="lancPubSupSaida" value="0" min="0"></div>
+    </div>
+    <div class="field"><label>Saldo Suprimento (l)</label><input type="number" id="lancPubSupSaldo" placeholder="obrigatório"></div>
+
+    <div class="section-label">Saldo físico (régua) <span class="muted" style="font-weight:400;text-transform:none">— opcional, só nos dias de aferição</span></div>
+    <div class="field"><label>Saldo físico (l)</label><input type="number" min="0" id="lancPubFisico" placeholder="ex: 9200"></div>
+
+    <div class="section-label">Anexos</div>
+    <div class="upload-row">
+      <label class="upload-box" id="lancPubPrintBox"><span class="upload-box-text">Print do sistema</span><div class="upload-box-preview"></div><input type="file" id="lancPubPrint" accept="image/*,.pdf"></label>
+      <label class="upload-box" id="lancPubFotoBox"><span class="upload-box-text">Foto da régua</span><div class="upload-box-preview"></div><input type="file" id="lancPubFoto" accept="image/*"></label>
+    </div>
+
+    <div class="field" style="margin-top:14px"><label>Observação (opcional)</label><textarea id="lancPubObs" rows="2" placeholder="Explique se houve ajuste, mapa em aberto, etc."></textarea></div>
+
+    <button class="btn btn-primary" id="lancPubEnviar" type="button" style="width:100%;margin-top:18px">Enviar lançamento</button>
+  `;
+
+  document.getElementById("lancPubTrocarUnidade").addEventListener("click", ()=>{ lancPubState = { unidadeId:null, tanqueId:null, supEditado:false }; renderPublicLancamento(); });
+  document.getElementById("lancPubTanque").addEventListener("change", (e)=>{ lancPubState.tanqueId = e.target.value; lancPubState.supEditado = false; renderPublicLancamento(); });
+  document.getElementById("lancPubData").addEventListener("change", ()=>renderPublicLancamento());
+
+  document.getElementById("lancPubNome").value = preservado.nome;
+  document.getElementById("lancPubMatricula").value = preservado.matricula;
+  document.getElementById("lancPubObs").value = preservado.obs;
+
+  const prepostoCb = document.getElementById("lancPubPreposto");
+  const matriculaWrap = document.getElementById("lancPubMatriculaWrap");
+  const matriculaHint = document.getElementById("lancPubMatriculaHint");
+  if(preservado.preposto){
+    prepostoCb.checked = true;
+    matriculaWrap.hidden = true;
+    matriculaHint.hidden = false;
+  }
+  prepostoCb.addEventListener("change", ()=>{
+    matriculaWrap.hidden = prepostoCb.checked;
+    matriculaHint.hidden = !prepostoCb.checked;
+  });
+
+  wireUploadBox("lancPubPrintBox", "lancPubPrint", ()=>{});
+  wireUploadBox("lancPubFotoBox", "lancPubFoto", ()=>{});
+
+  // pré-preenche Suprimento com o que já foi lançado hoje para esta bomba/grupo (se houver),
+  // senão espelha o Abastecimento — igual o modal "Incluir saldo" do admin.
+  const grupoKey = grupoKeyDe(grupoIds);
+  const supExistente = suprimentos.find(s=>s.unidadeId===u.id && s.grupoKey===grupoKey && s.data===data);
+  const supEntradaEl = document.getElementById("lancPubSupEntrada");
+  const supSaidaEl = document.getElementById("lancPubSupSaida");
+  const supSaldoEl = document.getElementById("lancPubSupSaldo");
+  const supHint = document.getElementById("lancPubSupHint");
+  let supEditado = false;
+  if(supExistente){
+    supEntradaEl.value = supExistente.supEntrada||0;
+    supSaidaEl.value = supExistente.supSaida||0;
+    supSaldoEl.value = (supExistente.supSaldoManual===null||supExistente.supSaldoManual===undefined) ? "" : supExistente.supSaldoManual;
+    supEditado = true;
+    supHint.textContent = "Já existe Suprimento lançado para esta bomba nesta data — ajuste abaixo se precisar.";
+  }
+  function getMovimento(){
+    const entrada = Number(document.getElementById("lancPubEntradaWrap").hidden?0:document.getElementById("lancPubEntrada").value||0);
+    const saida = Number(document.getElementById("lancPubSaida").value||0);
+    return { abE:entrada, abS:saida };
+  }
+  function mirrarSuprimentoSeNaoEditado(){
+    if(supEditado) return;
+    const {abE, abS} = getMovimento();
+    supEntradaEl.value = abE;
+    supSaidaEl.value = abS;
+    supSaldoEl.value = document.getElementById("lancPubAbSaldo").value;
+  }
+  document.getElementById("lancPubEntrada").addEventListener("input", mirrarSuprimentoSeNaoEditado);
+  document.getElementById("lancPubSaida").addEventListener("input", mirrarSuprimentoSeNaoEditado);
+  document.getElementById("lancPubAbSaldo").addEventListener("input", mirrarSuprimentoSeNaoEditado);
+  [supEntradaEl, supSaidaEl, supSaldoEl].forEach(el=>el.addEventListener("input", ()=>{ supEditado = true; }));
+
+  document.getElementById("lancPubHouve").querySelectorAll(".radio-opt").forEach(opt=>{
+    opt.addEventListener("click", ()=>{
+      document.getElementById("lancPubHouve").querySelectorAll(".radio-opt").forEach(o=>o.classList.remove("active"));
+      opt.classList.add("active");
+      document.getElementById("lancPubEntradaWrap").hidden = opt.dataset.v!=="sim";
+      if(opt.dataset.v!=="sim") document.getElementById("lancPubEntrada").value = 0;
+      mirrarSuprimentoSeNaoEditado();
+    });
+  });
+
+  document.getElementById("lancPubEnviar").addEventListener("click", async ()=>{
+    const nome = document.getElementById("lancPubNome").value.trim();
+    if(!nome){ showToast("Informe o nome completo do responsável."); return; }
+    const isPreposto = prepostoCb.checked;
+    const matricula = document.getElementById("lancPubMatricula").value.trim();
+    if(!isPreposto && !matricula){ showToast("Informe a matrícula (ou marque que é preposto/terceirizado)."); return; }
+    const dataEnvio = document.getElementById("lancPubData").value;
+    if(!dataEnvio){ showToast("Informe a data."); return; }
+    const abSaldoManualStr = document.getElementById("lancPubAbSaldo").value;
+    const supSaldoManualStr = supSaldoEl.value;
+    if(abSaldoManualStr===""){ showToast("Informe o Saldo Abastecimento."); return; }
+    if(supSaldoManualStr===""){ showToast("Informe o Saldo Suprimento."); return; }
+
+    const btn = document.getElementById("lancPubEnviar");
+    btn.disabled = true; btn.textContent = "Enviando...";
+    try{
+      const {abE, abS} = getMovimento();
+      const fisicoStr = document.getElementById("lancPubFisico").value;
+      const fisico = fisicoStr===""? null : Number(fisicoStr);
+      const obs = document.getElementById("lancPubObs").value.trim();
+
+      let printAssetId = null, fotoAssetId = null;
+      const printFile = document.getElementById("lancPubPrint").files[0];
+      const fotoFile = document.getElementById("lancPubFoto").files[0];
+      try{
+        if(assetsNs && printFile){ const r = await assetsNs.upload(printFile); printAssetId = r.id; }
+        if(assetsNs && fotoFile){ const r = await assetsNs.upload(fotoFile); fotoAssetId = r.id; }
+      }catch(e){ showToast("Falha ao enviar anexo — lançamento salvo sem ele."); }
+
+      const l = {
+        id: t.id+"__"+dataEnvio, unidadeId:u.id, tanqueId:t.id, produto:t.produto, data:dataEnvio,
+        abEntrada:abE, abSaida:abS, abSaldoManual:Number(abSaldoManualStr),
+        saldoFisico:fisico, printAssetId, fotoAssetId, obs, exemplo:false,
+        responsavelNome: nome, responsavelMatricula: isPreposto?null:matricula, responsavelPreposto: isPreposto,
+      };
+      await saveLancamento(l);
+
+      const grupoKeyEnvio = grupoKeyDe(grupoIds);
+      const supExistenteEnvio = suprimentos.find(s=>s.unidadeId===u.id && s.grupoKey===grupoKeyEnvio && s.data===dataEnvio);
+      const s = {
+        id: supExistenteEnvio ? supExistenteEnvio.id : ("sup-"+u.id+"-"+grupoKeyEnvio.replace(/,/g,"_")+"-"+dataEnvio+"-"+Date.now().toString(36)),
+        unidadeId:u.id, grupoKey:grupoKeyEnvio, tanqueIds:grupoIds, data:dataEnvio,
+        supEntrada: Number(supEntradaEl.value||0), supSaida: Number(supSaidaEl.value||0),
+        supSaldoManual: Number(supSaldoManualStr), obs,
+        criadoPor: nome, criadoEm: new Date().toISOString(),
+      };
+      await saveSuprimento(s);
+
+      showToast("Lançamento registrado com sucesso.");
+      lancPubState = { unidadeId:null, tanqueId:null, supEditado:false, done:{ unidadeNome:u.nome, nome } };
+      renderPublicLancamento();
+    }catch(e){
+      console.error("[saldo] falha ao salvar lançamento (link público):", e);
+      showToast("Erro ao salvar: " + (e && e.message ? e.message : "erro desconhecido"));
+      btn.disabled = false; btn.textContent = "Enviar lançamento";
+    }
+  });
+}
+
 function afUnidadesAtivas(){
   return unidades.filter(unidadeAtiva).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
 }
@@ -6072,6 +6436,7 @@ document.getElementById("logoutBtn").addEventListener("click",()=>{
 document.getElementById("openIncluirSaldo").addEventListener("click",()=>openIncluirSaldo());
 document.getElementById("openNovaUnidade").addEventListener("click", openNovaUnidade);
 document.getElementById("openLinkAfericaoGlobal2").addEventListener("click", openLinkAfericaoGlobal);
+document.getElementById("openLinkLancamentoGlobal2").addEventListener("click", openLinkLancamentoGlobal);
 document.getElementById("refreshDataBtn").addEventListener("click", refreshAllData);
 document.getElementById("openNovoUsuario").addEventListener("click", openNovoUsuario);
 document.getElementById("testarDb").addEventListener("click", testarConexaoDb);
@@ -6189,8 +6554,11 @@ document.getElementById("appBuild").textContent = APP_BUILD;
 initTheme();
 initLogoPadrao();
 const afParam = new URLSearchParams(location.search).get("af");
+const lancParam = new URLSearchParams(location.search).get("lanc");
 if(afParam){
   initPublicAfericao();
+} else if(lancParam){
+  initPublicLancamento();
 } else {
   restoreSession();
   if(session){ enterApp(); }
